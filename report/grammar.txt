@@ -1,0 +1,43 @@
+Navn:
+  Eksempel: Tabellnavn, kolonnenavn, aliaser. Kan kun inneholde bokstaver, tall og _, men hvis den inneholder tall maa den begynne med en bokstav
+Nøkkelord:
+  Bokstavbaserte:
+    FROM
+    AS
+    MERGE
+    AN:D, OR 
+    OLD
+    USING
+    CREATE
+    DELETE
+    TABLE 
+    OF
+    STRING, NUMBER, BOOLEAN
+    FILTER
+    OUTPUT
+    POINTS TO
+    COL
+    KEYCOL
+  Tegnbaserte:
+    #  Indikerer starten paa en kommentar
+    .  For aa spesifisere en kolonne inne i en tabell, eller en kolonne inne i en kolonne
+    ,  Separerer uttrykk eks hvilke kolonner som skal skrives ut
+    =  Likhet
+    != Ulikhet
+    <  Minde enn
+    >  Større enn
+    <= Mindre eller lik
+    >= Større eller lik
+    -> Send outputen vidre til en funksjon (slik som pipe-symbolet i unix)
+    (  Indikerer start paa funksjonkall (funksjon med parametre) og start paa rad for insetting
+    )  Samme, men indikerer slutten
+ Funksjoner:
+   CAPITALIZED
+   UPPERCASE
+   LOWERCASE
+   BETWEEN(N₁,N₂)
+   ONEOF(L₁, L₂, ..., Ln)
+"Litteral"
+  Strenger
+  Tall
+  Booler
