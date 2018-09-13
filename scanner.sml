@@ -57,16 +57,13 @@ in
   rmWs(str, getCharAtIndex(str,0), getCharAtIndex(str,1))
 end *)
 
-fun rmWs(str:string) =
-  let
-    fun rmWs(str:string, SOME(#" "), SOME(#" ")):string = rmWs(String.substring(str,2, size(str) -2), getCharAtIndex(str,1), getCharAtIndex(str,2))
-      | rmWs(str:string, SOME(_), SOME(_)):string = String.substring(str,0,1) ^ rmWs(String.substring(str,1,size(str) -1), getCharAtIndex(str,1), getCharAtIndex(str,2))
-      | rmWs(str:string, _, _) = str
-  in
-    rmWs(str, getCharAtIndex(str,0), getCharAtIndex(str,1))
-  end
+fun rmWs(str:string):string =
+  case (getCharAtIndex(str,0), getCharAtIndex(str,1))  of
+      (SOME(#" "), SOME(#" ")) => rmWs(String.substring(str,1, size(str) -1))
+    | (SOME(_), SOME(_)) => String.substring(str,0,1) ^ rmWs(String.substring(str,1,size(str) -1))
+    | (_, _) => str (*The first or both are empty*)
 
-val removed = rmWs("ab   bcd")
+val removed = rmWs("a    b   bc   d")
 val _ = print(removed)
 
 (* fun scan(str:string, currChar:char):Token list =
