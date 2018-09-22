@@ -1,61 +1,35 @@
 (*Description*)
+use "util.sml";
 fun main a = print("Hello sml");
 
-datatype Literal =
-   Bool of bool
-  |Number of int
-  |String of string
+datatype litteralType =
+  String of string
+  | Bool of bool
+  | Number of real
 
-datatype Keyword =
-   Alfabetic of string
-  |Character of char
+datatype symbol =
+    Operator of string
+  | PredicateOperator of string
+  | SyntaxSymbol of string
 
 datatype Token =
-    Name of string
-  | Function of string
-  | Litteral
-  | Keyword;
+    Identifier of string (*Ex: tablename, columname*)
+  | Function of string (*Ex: noneof*)
+  | PipeFunction of string (*Ex: upper, lower*)
+  | Litteral of litteralType (*Ex: 123, "text"*)
+  | Keyword of string (*Ex: from,Token filter*)
+  | Symbol of symbol (*Ex: #, {*);
 
-val keywords = ["from","as","merge"]
-val functions = ["upper","lower"];
-
-fun getCharAtIndex(str:string, index:int):char option =
-  let
-    fun getCharAtIndex(str:string, index:int, currIndex:int):char option =
-      if(currIndex = size(str)) then NONE
-      else if(currIndex = index) then SOME(String.sub(str, index))
-      else getCharAtIndex(str, index, currIndex +1)
-  in
-    getCharAtIndex(str, index, 0)
-  end
-
-fun getOptionChar(c:char option) =
-case c of
-   SOME(c) => Char.toString(c)
-  |NONE => "Not found";
-
-
-(* fun rmWs(str:string):string =
-  let
-    fun rmWs (str:string, SOME(c), NONE):string = str
-    | rmWs(str:string, SOME(#" "), SOME(#" ")):string =
-      let
-        val _ = print("at41: Str: [" ^ str ^ "] c1: [" ^ "space" ^ "] c2: [" ^ "space" ^ "] " ^ "\n")
-      in
-      rmWs(String.substring(str,1, size(str) -2 ), getCharAtIndex(str, 2), getCharAtIndex(str,3))
-      end
-    | rmWs(str, NONE, NONE) = str
-    | rmWs(str, _, SOME(#" ")) = rmWs()
-    |rmWs(str:string, c1:char option, c2:char option) =
-    let
-      val _ = print("at 48 Str: [" ^ str ^ "] c1: [" ^ getOptionChar(c1) ^ "] c2: [" ^ getOptionChar(c2) ^ "]c1Pos: " ^ "\n")
-    in
-      String.substring(str, 0, 2)
-      ^ rmWs(String.substring(str, 2, size(str) - 2),  getCharAtIndex(str, 2), getCharAtIndex(str, 3) )
-    end
-in
-  rmWs(str, getCharAtIndex(str,0), getCharAtIndex(str,1))
-end *)
+val keywords = ["from","filter","using","and","or",
+              "merge","insert","rows","into","remove","as",
+              "where", "set","create","table","with",
+              "colums","of","default","string","boolean","number",
+              "output"]
+val functions = ["upper","lower","oneof","noneof"]
+val pipeFunctions = ["upper","lower"]
+val operators = ["+","-","*","/"]
+val predicateOperators = ["=","!=","<",">","<=",">="]
+val syntaxSymbols = [".",",",":","{","}","(", ")","*","|"]
 
 fun rmWs(str:string):string =
   case (getCharAtIndex(str,0), getCharAtIndex(str,1))  of
@@ -63,11 +37,42 @@ fun rmWs(str:string):string =
     | (SOME(_), SOME(_)) => String.substring(str,0,1) ^ rmWs(String.substring(str,1,size(str) -1))
     | (_, _) => str (*The first or both are empty*)
 
-val removed = rmWs("a    b   bc   d")
-val _ = print(removed)
+fun rmComments(lines: string list):string list =
+  case lines of
+    (x::xs) =>
+    let
+      val substr = Substring.full(x)
+      val (noComment, comment) = Substring.splitl (fn c => c <> #"#") substr
+    in
+      Substring.string noComment :: rmComments(xs)
+    end
+    |(nil) => lines
 
-(* fun scan(str:string, currChar:char):Token list =
+fun splitStrByNewline(str:string):string list =
+  let val substr = Substring.full(str)
+  in
+    map (fn e => Substring.string e) (Substring.fields (fn c => c = #"\n") substr )
+  end
 
-  val trimmed =
-    if currChar == #"#" then "test"
-    else str; *)
+fun getTokenByKind(t:string):Token =
+  let val tComparator = member(t)
+  in
+    if tComparator keywords then Keyword(t)
+    else if tComparator functions then Function(t)
+    else if tComparator pipeFunctions then PipeFunction(t)
+    else if tComparator operators then Symbol(Operator(t))
+    else if tComparator predicateOperators then Symbol(PredicateOperator(t))
+    else if tComparator syntaxSymbols then Symbol(SyntaxSymbol(t))
+    else Identifier(t)
+  end
+
+(* fun trimAndScan(str:string):Token list =
+  let
+    val noComments = rmComments(splitStrByNewline(str))
+    val noCommentOrWhitespace = rmWs(listToStr(noComments,I," "))
+  in
+    scan(str, String.sub(0))
+  end *)
+
+(* val _ = print(trimAndScan("dette    er    ern test\nnylinje   mel\n #kommentarHeleLinja\n linjestart #kommentarslutt")) *)
+(* fun scan(str:string, currChar:char):Token list = *)

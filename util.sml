@@ -24,6 +24,7 @@ let
   end
 
 fun op $ (n:int) = Int.toString(n);
+fun I(a) = a
 
 fun insertionSort [] = []
   | insertionSort (l:int list) =
@@ -35,6 +36,19 @@ fun insertionSort [] = []
 
 fun listToStr ([], toStr:('a->string),sep:string):string = ""
   | listToStr(x::xs, toStr:('a->string),sep:string) = toStr x ^ sep ^ listToStr(xs,toStr,sep)
+
+(*adapted with variations from "ML for the working programmer"*)
+fun member(x) l = List.exists (fn elem => elem = x) l
+
+fun getCharAtIndex(str:string, index:int):char option =
+  let
+    fun getCharAtIndex(str:string, index:int, currIndex:int):char option =
+      if(currIndex = size(str)) then NONE
+      else if(currIndex = index) then SOME(String.sub(str, index))
+      else getCharAtIndex(str, index, currIndex +1)
+  in
+    getCharAtIndex(str, index, 0)
+  end
 
 exception NotEnoughListElements of string;
 
@@ -53,5 +67,5 @@ fun format(str:string, vals:string list) =
         else hd vals ^ format(listToStr(r,Char.toString,""), tl vals)
       |(f,r) => Char.toString(f) ^ format(listToStr(r,Char.toString,""), vals)
   end
-  val _ = print(format("Navn: $ Etternavn: $", ["hei","sann"]))
+  (* val _ = print(format("Navn: $ Etternavn: $", ["hei","sann"])) *)
   (* val _ = print("Hello sml"); *)
