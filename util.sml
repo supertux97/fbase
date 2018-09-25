@@ -23,7 +23,8 @@ let
     removeElemAtIndex(l,i,0)
   end
 
-fun op $ (n:int) = Int.toString(n);
+fun hdString(str:string):char = String.sub(str,0)
+fun op $ (n:int) = Int.toString(n)
 fun I(a) = a
 
 fun insertionSort [] = []
@@ -50,6 +51,8 @@ fun getCharAtIndex(str:string, index:int):char option =
     getCharAtIndex(str, index, 0)
   end
 
+fun rmHeadOfString(str:string):string = String.substring(str,1,size(str)-1)
+
 exception NotEnoughListElements of string;
 
 (*Usage: printf("Name: $1 Age: $2", [S("Name"), I(15)])*)
@@ -66,6 +69,7 @@ fun format(str:string, vals:string list) =
         if(vals = nil) then raise NotEnoughListElements("Missing list elements")
         else hd vals ^ format(listToStr(r,Char.toString,""), tl vals)
       |(f,r) => Char.toString(f) ^ format(listToStr(r,Char.toString,""), vals)
-  end
+  end;
+
   (* val _ = print(format("Navn: $ Etternavn: $", ["hei","sann"])) *)
   (* val _ = print("Hello sml"); *)
