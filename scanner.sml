@@ -70,13 +70,13 @@ fun getTokenByKind(t:string):Token =
   end
 
 fun tokToStrWithType(t:Token) =
-    let 
+    let
       fun ts(value:string, kind:string) = format("$:$", [value, kind])
-    in 
+    in
      case t of
-      Identifier i => ts(i, "Id") 
-    | Function f => ts(f, "Fun") 
-    | PipeFunction pf => ts(pf, "PipeFun") 
+      Identifier i => ts(i, "Id")
+    | Function f => ts(f, "Fun")
+    | PipeFunction pf => ts(pf, "PipeFun")
     | Keyword k => ts(k,"Keyword")
     | Litteral l =>
       ( case l of
@@ -85,12 +85,45 @@ fun tokToStrWithType(t:Token) =
         |Number n => ts(Real.toString(n), "Num") )
     |Symbol s =>
           (case s of
-             Operator opp => ts(opp, "Op") 
-            | PredicateOperator po => ts(po, "PredOp") 
+             Operator opp => ts(opp, "Op")
+            | PredicateOperator po => ts(po, "PredOp")
             | SyntaxSymbol ss => ts(ss, "Syntax"))
       end
 
 exception NoSuchSymolError of string * int
+exception ConvesionFormatException of string
+(*A version which uses the Real-libarys function for parsing, but resturns the
+real or raises an exeption instead of returning a option*)
+fun realFromString(str:string):real =
+ case Real.fromString(str) of
+     SOME(r) => r
+   | NONE => raise ConvesionFormatException(format("Could not parse the string intoa real", [str]))
+
+ fun ssToStr(s:substring) = Substring.string s
+ fun strToSs(s:string) = Substring.full s
+
+ (*Parses the first number (including decimal number) from a string.
+ The eventually non-numeric characters at the start is discarded
+ The number and the rest of the string is returned*)
+fun getFirstNumberFromString(str:string):(real*string) =
+ let
+   fun nextNumPair(str:string):(string*string) =
+     let val (num, rest) = Substring.splitl Char.isDigit (strToSs str)
+     in (ssToStr num, ssToStr rest)
+     end
+ in
+   if Char.isDigit( hdString str ) then
+     let val (integerPart, rest) = nextNumPair str
+     in
+       if hdString rest = #"." then
+         let val (decimalPart, restAfterDecimal) = nextNumPair( rmHeadOfString rest)
+         in (realFromString(format("$.$", [integerPart, decimalPart])), restAfterDecimal)
+         end
+       else (realFromString(format("$.0",[integerPart])), rest)
+     end
+   else getFirstNumberFromString(rmHeadOfString(str))  (*Drop first char and retry*)
+ end
+
 
   fun scan(str:string, lineNo:int):TokenAtLine list =
   let
@@ -106,45 +139,15 @@ exception NoSuchSymolError of string * int
     else if firstChar = #"\n" then scan(rmHeadOfString(str), lineNo +1)
     else if member (Char.toString(firstChar)) validSymbols
       then (getTokenByKind(Char.toString(firstChar)), lineNo) :: scan(rmHeadOfString(str), lineNo)
-  (*  else if Char.isDigit then 
-      let val (number, rest) =  *)
+    else if Char.isDigit(firstChar) then
+      let
+        val (number, rest) = getFirstNumberFromString(str)
+        val _ = print(format("Found num: $ and rest: $", [Real.toString number, rest]))
+      in ( Litteral(Number(number)), lineNo) :: scan(rest, lineNo)
+      end
     else raise NoSuchSymolError(format("Unknown symbol $", [Char.toString(firstChar)]), lineNo)
   end
   handle Subscript => []
-
-    fun ssToStr(s:substring) = Substring.string s
-    fun strToSs(s:string) = Substring.full s
-
- 
-   exception ConvesionFormatException of string  
-  (*A version which uses the Real-libarys function for parsing, but resturns the
-   real or raises an exeption instead of returning a option*)
-  fun realFromString(str:string):real = 
-    case Real.fromString(str) of
-        SOME(r) => r
-      | NONE => raise ConvesionFormatException(format("Could not parse the string intoa real", [str]))
-
-    (*Parses the first number (including decimal number) from a string.
-    The eventually non-numeric characters at the start is discarded
-    The number and the rest of the string is returned*)
-  fun getFirstNumberFromString(str:string, splitFn:(char->bool)):(real*string) =
-    if Char.isDigit(hdString(str)) then
-      let 
-        val (matchPart, rest) = Substring.splitl splitFn (strToSs str)
-      in
-        if hdString (ssToStr rest) = #"." then 
-          (
-            realFromString(format("$.$",[ssToStr matchPart,
-            getFirstNumberFromString(ssToStr rest, fn c => Char.isDigit c )])),
-            ssToStr rest
-          )
-        else 
-          ( 
-            realFromString(format("$.0",[ssToStr matchPart])), 
-            ssToStr rest 
-          )
-      end
-    else getFirstNumberFromString(rmHeadOfString(str), splitFn)
 
 
 fun trimAndScan(str:string):TokenAtLine list =
