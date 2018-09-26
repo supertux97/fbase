@@ -23,6 +23,18 @@ let
     removeElemAtIndex(l,i,0)
   end
 
+(*Returns a list consisting of just the first n characters of every element in a
+string list.
+ Example: ["abc","cake","def"] -> ["a","c","d"]
+ Raises: Subscript(from String.sub) if there is elements
+fun firstNCharsOfStringList(l:string list,n:int) = 
+  case l of
+      [] => []
+     |(x::xs) => String.substring(x,n) :: firstCharsOfStringList(xs) *)
+
+fun fileToStr(fname:string):string =
+  TextIO.inputAll(TextIO.openIn(fname))
+
 fun hdString(str:string):char = String.sub(str,0)
 fun op $ (n:int) = Int.toString(n)
 fun I(a) = a
