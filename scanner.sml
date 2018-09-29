@@ -13,7 +13,7 @@ datatype symbol =
   | SyntaxSymbol of string
 
 datatype Token =
-    Identifier of string (*Ex: tablename, columname*)
+    Identifier of {value: string, name:"Id"} (*Ex: tablename, columname*)
   | Function of string (*Ex: noneof*)
   | PipeFunction of string (*Ex: upper, lower*)
   | Litteral of litteralType (*Ex: 123, "text"*)
