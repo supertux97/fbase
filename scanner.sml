@@ -83,39 +83,57 @@ fun dropN([], n:int) = []
   | dropN(x::xs,n) = dropN(xs,n-1) 
  
 fun getTok(tal: TokenAtLine) = 
-  #1(tal)
+ case tal of (t,_) => t 
 
-fun getFirstTripple(toks:TokenAtLine list):(Token*Token*Token*TokenAtLine list) =
-   ( getTok(List.nth(toks,0)), getTok(List.nth(toks,1)), getTok(List.nth(toks,2)), dropN(toks, 2))  
+fun getLineNo(tal:TokenAtLine) =
+  case tal of(_,lineNo) => lineNo
+fun convToken(tok:Token, f:(Token -> 'a)) = f(tok)
+
+(*Gets the first tree tokens and then the rest*)
+fun getFirstTripple(toks:TokenAtLine list):(TokenAtLine*TokenAtLine*TokenAtLine*TokenAtLine list) =
+   ( List.nth(toks,0), List.nth(toks,1), List.nth(toks,2), dropN(toks, 2))  
 
 exception UnexpectedSymbol of string * int;
+
+fun handleUnexpected(found:string,wanted:string,lineNo:int) = raise
+  UnexpectedSymbol(found, lineNo)
 
 fun splitExpr(toks:TokenAtLine list):Expr list = 
   let 
     val hightPredOper = ["*","/"]
     val lowPredOper = ["-","+","**"]
     
-    fun getExprByOp(n1,n2,oper) =
-      case oper of
-           "*" => Mul(n1,n2)
-         | "/" => Div(n1,n2)
-         | "-" => Sub(n1,n2)
-         | "+" => Add(n1,n2)
+    fun getExprByOp(n1,n2,oper,lineNo) =
+        case oper of
+             "*" => Mul(n1,n2)
+          | "/" => Div(n1,n2)
+          | "-" => Sub(n1,n2)
+          | "+" => Add(n1,n2)
+          | s => raise UnexpectedSymbol("The",lineNo) 
 
-    fun splitByOperPred(toks:TokenAtLine list, opers):Expr list = 
+    fun splitByHiOperPred(toks:TokenAtLine list):Expr list = 
       let 
-        val (n1,oper,n2,rest) = getFirstTriple(toks)
+        val (talNum1,talOper,talNum2,rest) = getFirstTripple(toks)
+        val talToNum = fn(tal) =>
+           case getTok(tal) of 
+                Litteral(Number(n)) => n 
+              | _ => handleUnexpected("erer","jejr",getLineNo(tal)) 
+        val talToOper= fn(tal) => 
+            case getTok(tal) of 
+                 Symbol(Operator(opp)) => opp 
+               | _ => handleUnexpected("erier","34j3j4",getLineNo(tal)) 
+        val(n1,oper,n2) = (talToNum(talNum1), talToOper(talOper),talToNum(talNum2)) 
       in
-        if toks = [] then []
+        if length(toks) = 0 then [] 
         else 
-          case oper of 
-            Operator(opVal) => if member(opVal, opers) 
-                          then getExprByOp(n1,n2,oper) :: splitHiOperatorPredec(rest)
-                          else splitHiOperatorPredec(rest)
-            |_ => raise UnexpectedSymbol()
+          case getTok(talOper) of 
+            Symbol(Operator(opVal)) => if member opVal hightPredOper 
+                          then getExprByOp(n1,n2,oper,getLineNo(talOper)) :: splitByHiOperPred(rest)
+                          else splitByHiOperPred(rest)
+            |_ => raise UnexpectedSymbol("4u4u4",getLineNo(talOper))
       end
   in
-    splitByOperPred(toks, hightPredOper)
+    splitByHiOperPred(toks)
   end 
 
 
