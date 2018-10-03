@@ -13,7 +13,7 @@ datatype symbol =
   | SyntaxSymbol of string
 
 datatype Token =
-    Identifier of {value: string, name:"Id"} (*Ex: tablename, columname*)
+    Identifier of string(*Ex: tablename, columname*)
   | Function of string (*Ex: noneof*)
   | PipeFunction of string (*Ex: upper, lower*)
   | Litteral of litteralType (*Ex: 123, "text"*)
@@ -46,6 +46,7 @@ val oneLenOperators = operatorsLenOne @ predicateOperatorsLenOne @ syntaxSymbols
 val twoLenOperators = predicateOperatorsLenTwo @ syntaxSymbolsLenTwo 
 val firstOfTwoLenOperators = map (fn e => Char.toString(String.sub(e,0))) twoLenOperators
 val validSymbols = predicateOperators @ syntaxSymbols @ operators @ firstOfTwoLenOperators
+
 fun rmWs(str:string):string =
   case (getCharAtIndex(str,0), getCharAtIndex(str,1))  of
       (SOME(#" "), SOME(#" ")) => rmWs(String.substring(str,1, size(str) -1))
@@ -68,6 +69,55 @@ fun splitStrByNewline(str:string):string list =
   in
     map (fn e => Substring.string e) (Substring.fields (fn c => c = #"\n") substr )
   end
+
+
+
+datatype Expr = Num of real|
+                Mul of real * real|
+                Div of real * real|
+                Add of real * real|
+                Sub of real * real;
+(*Tries to remove the first n elements from a list*)
+fun dropN([], n:int) = []
+  | dropN(l,0) = l
+  | dropN(x::xs,n) = dropN(xs,n-1) 
+ 
+fun getTok(tal: TokenAtLine) = 
+  #1(tal)
+
+fun getFirstTripple(toks:TokenAtLine list):(Token*Token*Token*TokenAtLine list) =
+   ( getTok(List.nth(toks,0)), getTok(List.nth(toks,1)), getTok(List.nth(toks,2)), dropN(toks, 2))  
+
+exception UnexpectedSymbol of string * int;
+
+fun splitExpr(toks:TokenAtLine list):Expr list = 
+  let 
+    val hightPredOper = ["*","/"]
+    val lowPredOper = ["-","+","**"]
+    
+    fun getExprByOp(n1,n2,oper) =
+      case oper of
+           "*" => Mul(n1,n2)
+         | "/" => Div(n1,n2)
+         | "-" => Sub(n1,n2)
+         | "+" => Add(n1,n2)
+
+    fun splitByOperPred(toks:TokenAtLine list, opers):Expr list = 
+      let 
+        val (n1,oper,n2,rest) = getFirstTriple(toks)
+      in
+        if toks = [] then []
+        else 
+          case oper of 
+            Operator(opVal) => if member(opVal, opers) 
+                          then getExprByOp(n1,n2,oper) :: splitHiOperatorPredec(rest)
+                          else splitHiOperatorPredec(rest)
+            |_ => raise UnexpectedSymbol()
+      end
+  in
+    splitByOperPred(toks, hightPredOper)
+  end 
+
 
 fun getTokenByKind(t:string):Token =
   let val tComparator = member(t)
@@ -114,17 +164,18 @@ fun realFromString(str:string):real =
  fun ssToStr(s:substring) = Substring.string s
  fun strToSs(s:string) = Substring.full s
 
- (*Parses the first number (including decimal number) from a string.
- The eventually non-numeric characters at the start is discarded
+ (*Parses the first number (including decimal  and negative numbers) from a string.
+ The eventually non-numeric  characters(excluding -) at the start is discarded
  The number and the rest of the string is returned*)
 fun getFirstNumberFromString(str:string):(real*string) =
   let
+   fun digitOrMinus c = Char.isDigit(c) orelse c = #"-"
    fun nextNumPair(str:string):(string*string) =
-     let val (num, rest) = Substring.splitl Char.isDigit (strToSs str)
+     let val (num, rest) = Substring.splitl digitOrMinus (strToSs str)
      in (ssToStr num, ssToStr rest)
      end
  in
-   if Char.isDigit( hdString str ) then
+   if digitOrMinus(hdString(str)) then
      let val (integerPart, rest) = nextNumPair str
      in
        if size(rest) > 0 andalso hdString rest = #"." then
@@ -171,9 +222,11 @@ fun getFirstNumberFromString(str:string):(real*string) =
         then (Char.toString(hdString str ), String.substring(str,1, size(str) -1))
       else getOperatorFromString(rmHeadOfString str,l1,l2)
 
+
   fun scan(str:string, lineNo:int):TokenAtLine list =
     let
       val firstChar = String.sub(str, 0)
+      val secondChar = String.sub(str, 1)
       val subString = Substring.full(str)
 
       fun startOfIdentifier(c:char) = Char.isAlpha(firstChar) 
@@ -181,7 +234,9 @@ fun getFirstNumberFromString(str:string):(real*string) =
       fun startOfString(c:char) = c = stringSep
       fun newline(c:char) = c = #"\n"
       fun startofSymbol(c:char) = member (Char.toString(firstChar)) validSymbols
-      fun startOfDigit(c:char) = Char.isDigit(firstChar) 
+      fun startOfDigit(c:char) = Char.isDigit(firstChar)
+      fun startOfnegativeDigit(sign:char, startDigit:char) = sign = #"-" andalso
+        Char.isDigit(startDigit)
     in 
       if startOfIdentifier(firstChar) then
         let val (alfaToken, rest) = Substring.splitl Char.isAlpha subString
@@ -197,6 +252,11 @@ fun getFirstNumberFromString(str:string):(real*string) =
         in  (Litteral(String(ssToStr strContent)), lineNo) :: scan(rmHeadOfString(ssToStr(rest)),lineNo)
         end
 
+      else if startOfDigit(firstChar) orelse startOfnegativeDigit(firstChar, secondChar) then
+        let val (number, rest) = getFirstNumberFromString(str)
+        in ( Litteral(Number(number)), lineNo) :: scan(rest, lineNo)
+        end
+
       else if newline(firstChar) then scan(rmHeadOfString(str), lineNo +1)
 
       else if startofSymbol(firstChar) then 
@@ -204,10 +264,6 @@ fun getFirstNumberFromString(str:string):(real*string) =
           in (getTokenByKind(symbol),lineNo) :: scan(rest, lineNo)
           end
 
-      else if startOfDigit(firstChar) then
-        let val (number, rest) = getFirstNumberFromString(str)
-        in ( Litteral(Number(number)), lineNo) :: scan(rest, lineNo)
-        end
 
       else 
         raise NoSuchSymolError(format("Unknown symbol $", [Char.toString(firstChar)]), lineNo)

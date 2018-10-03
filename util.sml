@@ -53,6 +53,11 @@ fun listToStr ([], toStr:('a->string),sep:string):string = ""
 (*adapted with variations from "ML for the working programmer"*)
 fun member(x) l = List.exists (fn elem => elem = x) l
 
+(*Adopted from "Ml for the working programmer"*)
+infix memberOf
+fun (x memberOf []) = false
+| (x memberOf (e::r)) = (x=e) orelse (x memberOf r)
+
 fun getCharAtIndex(str:string, index:int):char option =
   let
     fun getCharAtIndex(str:string, index:int, currIndex:int):char option =
