@@ -43,7 +43,6 @@ fun insertionSort [] = []
   | insertionSort (l:int list) =
     let
       val (minElem, minIdx) = minOfIntList(l)
-      val _ = print("elem: " ^ $minElem ^ " index: " ^ $minIdx ^ "\n")
     in minElem :: insertionSort(removeElemAtIndex(l,minIdx))
     end
 
@@ -72,7 +71,7 @@ fun rmHeadOfString(str:string):string = String.substring(str,1,size(str)-1)
 
 exception NotEnoughListElements of string;
 
-(*Usage: printf("Name: $1 Age: $2", [S("Name"), I(15)])*)
+(*Example usage: printf("Name: $1 Age: $2", ["Name", $15]*)
 fun format(str:string, vals:string list) =
   let
     val chars = String.explode(str)

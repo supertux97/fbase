@@ -69,15 +69,13 @@ fun splitStrByNewline(str:string):string list =
   in
     map (fn e => Substring.string e) (Substring.fields (fn c => c = #"\n") substr )
   end
-
-
-
+(*
 datatype Expr = Num of real|
                 Mul of real * real|
                 Div of real * real|
                 Add of real * real|
-                Sub of real * real;
-(*Tries to remove the first n elements from a list*)
+                Sub of real * real; *)
+(*Tries to remove the first n elements from a list*) 
 fun dropN([], n:int) = []
   | dropN(l,0) = l
   | dropN(x::xs,n) = dropN(xs,n-1) 
@@ -98,6 +96,7 @@ exception UnexpectedSymbol of string * int;
 fun handleUnexpected(found:string,wanted:string,lineNo:int) = raise
   UnexpectedSymbol(found, lineNo)
 
+  (*
 fun splitExpr(toks:TokenAtLine list):Expr list = 
   let 
     val hightPredOper = ["*","/"]
@@ -134,8 +133,64 @@ fun splitExpr(toks:TokenAtLine list):Expr list =
       end
   in
     splitByHiOperPred(toks)
-  end 
+  end  *)
 
+  datatype Expr = Num of real | MathExpr of Expr * symbol * Expr 
+
+
+ (* fun solveExpr(expr:Expr):real = 
+    let 
+      fun solveBinExp(n1:real, n2:real, op:string) = 
+        case op of 
+             "+" => n1 + n2
+           | "-" => n1 - n2
+           | "*" => n1 * n2
+           | "/" => n1 / n2
+
+      fun solveSingle(exp:Expr):real = 
+        case exp of 
+              Num(n) => n
+             |MathExpr(me) => 
+              case me of
+                (Num(n1),Operator(op), Num(n2)) => solveBinExp(n1,n2,op)
+                |(Expr(e1),Operator(op),Expr(e2)) => 
+                    solveSingle(Expr(solveSingle(e1),op, solveSingle(e2)))
+      in
+         solveSingle(expr)  
+    end *)
+
+fun tokListToExpr( tokList: TokenAtLine list):Expr = 
+  case tokList of
+       [x] => 
+        (case getTok(x) of 
+             Litteral(Number(n)) => Expr(Num(n))
+           | t => raise InvalidSyntaxError(format("Line: $ Expected number but got $",
+               [tokToStrWithType(t),getLineNo(x)])))
+        |(x::xs) => 
+        let val tok1 = getTok(x)
+            val tok2 = getTok(hd(xs))
+            val rest = tl(xs)
+        in
+          case (tok1,tok2) of
+               ( Number(n), Operator(op) ) => 
+                  MathExpr(Num(n),Operator(op),tokListToExpr(tl(rest)))
+        end
+
+fun exprToStr(exp:Expr) = 
+  case exp of 
+       Num(n) => Real.toString(n)
+     | mathexpr as MathExpr(e1, Operator(ops),e2) =>
+           "( Expr(" ^ exprToStr(e1) ^ " " ^ ops^ exprToStr(e2) ^ ")"
+     | _ => " "
+
+  val tokList:Token list = [Litteral(Number(1.0)),
+                            Symbol(Operator("*")),
+                             Litteral(Number(5.0)),
+                             Symbol(Operator("+")),
+                             Litteral(Number(9.0))]
+
+ val exp = MathExpr(Num(1.0),Operator("*"), MathExpr(Num(5.0), Operator("+"),Num(9.0)))
+val _ = print(exprToStr(exp))
 
 fun getTokenByKind(t:string):Token =
   let val tComparator = member(t)
@@ -171,6 +226,7 @@ fun tokToStrWithType(t:Token) =
       end
 
 exception NoSuchSymolError of string * int
+exception InvalidSyntaxError of string * int
 exception ConvesionFormatException of string
 (*A version which uses the Real-libarys function for parsing, but resturns the
 real or raises an exeption instead of returning a option*)
@@ -281,7 +337,6 @@ fun getFirstNumberFromString(str:string):(real*string) =
           let val (symbol, rest) = getOperatorFromString(str, oneLenOperators, twoLenOperators)
           in (getTokenByKind(symbol),lineNo) :: scan(rest, lineNo)
           end
-
 
       else 
         raise NoSuchSymolError(format("Unknown symbol $", [Char.toString(firstChar)]), lineNo)
