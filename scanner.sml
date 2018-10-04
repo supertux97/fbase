@@ -21,7 +21,6 @@ datatype Token =
   | Symbol of symbol (*Ex: #, {*)
 
 type TokenAtLine = Token * int
-
 val keywords = ["from","filter","using","and","or",
               "merge","insert","rows","into","remove","as",
               "where", "set","create","table","with",
@@ -46,6 +45,10 @@ val oneLenOperators = operatorsLenOne @ predicateOperatorsLenOne @ syntaxSymbols
 val twoLenOperators = predicateOperatorsLenTwo @ syntaxSymbolsLenTwo 
 val firstOfTwoLenOperators = map (fn e => Char.toString(String.sub(e,0))) twoLenOperators
 val validSymbols = predicateOperators @ syntaxSymbols @ operators @ firstOfTwoLenOperators
+
+exception NoSuchSymolError of string * int
+exception InvalidSyntaxError of string * int
+exception ConvesionFormatException of string
 
 fun rmWs(str:string):string =
   case (getCharAtIndex(str,0), getCharAtIndex(str,1))  of
@@ -135,6 +138,26 @@ fun splitExpr(toks:TokenAtLine list):Expr list =
     splitByHiOperPred(toks)
   end  *)
 
+fun tokToStrWithType(t:Token) =
+    let
+       fun ts(value:string, kind:string) = format("$:$", [value, kind])
+    in
+     case t of
+      Identifier i => ts(i, "Id")
+    | Function f => ts(f, "Fun")
+    | PipeFunction pf => ts(pf, "PipeFun")
+    | Keyword k => ts(k,"Keyword")
+    | Litteral l =>
+      ( case l of
+         String s => ts(s, "String")
+        |Bool b => ts( if b then "true" else "false", "Bool")
+        |Number n => ts(Real.toString(n), "Num") )
+    |Symbol s =>
+          (case s of
+             Operator opp => ts(opp, "Op")
+            | PredicateOperator po => ts(po, "PredOp")
+            | SyntaxSymbol ss => ts(ss, "Syntax"))
+      end
   datatype Expr = Num of real | MathExpr of Expr * symbol * Expr 
 
 
@@ -159,22 +182,28 @@ fun splitExpr(toks:TokenAtLine list):Expr list =
          solveSingle(expr)  
     end *)
 
+exception UnexpectedTokensException of string * int * int
+
 fun tokListToExpr( tokList: TokenAtLine list):Expr = 
   case tokList of
        [x] => 
         (case getTok(x) of 
-             Litteral(Number(n)) => Expr(Num(n))
-           | t => raise InvalidSyntaxError(format("Line: $ Expected number but got $",
-               [tokToStrWithType(t),getLineNo(x)])))
+             Litteral(Number(n)) => Num(n)
+           | t => raise InvalidSyntaxError(format("Expected number but got $",
+               [tokToStrWithType(t)]),getLineNo(x)))
         |(x::xs) => 
-        let val tok1 = getTok(x)
-            val tok2 = getTok(hd(xs))
-            val rest = tl(xs)
-        in
-          case (tok1,tok2) of
-               ( Number(n), Operator(op) ) => 
-                  MathExpr(Num(n),Operator(op),tokListToExpr(tl(rest)))
-        end
+          let val tok1 = getTok(x)
+              val tok2 = getTok(hd(xs))
+              val rest = tl(xs)
+          in
+            case (tok1,tok2) of
+                 ( Litteral(Number(n)), Symbol(Operator(oper)) ) => 
+                    MathExpr(Num(n),Operator(oper),tokListToExpr(tl(rest)))
+                | (tok1,tok2) => raise
+                    UnexpectedTokensException(format("Expected number operator got $ $",[tokToStrWithType(tok1),tokToStrWithType(tok2)] ),
+                       getLineNo(x), getLineNo(hd(xs)))
+          end
+       | [] => Num(0.0)
 
 fun exprToStr(exp:Expr) = 
   case exp of 
@@ -190,6 +219,7 @@ fun exprToStr(exp:Expr) =
                              Litteral(Number(9.0))]
 
  val exp = MathExpr(Num(1.0),Operator("*"), MathExpr(Num(5.0), Operator("+"),Num(9.0)))
+ 
 val _ = print(exprToStr(exp))
 
 fun getTokenByKind(t:string):Token =
@@ -204,30 +234,7 @@ fun getTokenByKind(t:string):Token =
     else Identifier(t)
   end
 
-fun tokToStrWithType(t:Token) =
-    let
-       fun ts(value:string, kind:string) = format("$:$", [value, kind])
-    in
-     case t of
-      Identifier i => ts(i, "Id")
-    | Function f => ts(f, "Fun")
-    | PipeFunction pf => ts(pf, "PipeFun")
-    | Keyword k => ts(k,"Keyword")
-    | Litteral l =>
-      ( case l of
-         String s => ts(s, "String")
-        |Bool b => ts( if b then "true" else "false", "Bool")
-        |Number n => ts(Real.toString(n), "Num") )
-    |Symbol s =>
-          (case s of
-             Operator opp => ts(opp, "Op")
-            | PredicateOperator po => ts(po, "PredOp")
-            | SyntaxSymbol ss => ts(ss, "Syntax"))
-      end
 
-exception NoSuchSymolError of string * int
-exception InvalidSyntaxError of string * int
-exception ConvesionFormatException of string
 (*A version which uses the Real-libarys function for parsing, but resturns the
 real or raises an exeption instead of returning a option*)
 fun realFromString(str:string):real =
