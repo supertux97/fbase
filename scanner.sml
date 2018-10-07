@@ -1,5 +1,6 @@
 (*Description*)
 use "util.sml";
+use "utest.sml";
 fun main a = print("Hello sml");
 
 datatype litteralType =
@@ -48,8 +49,8 @@ val validSymbols = predicateOperators @ syntaxSymbols @ operators @ firstOfTwoLe
 
 exception NoSuchSymolError of string * int
 exception InvalidSyntaxError of string * int
-exception ConvesionFormatException of string
 
+(*Removes exess whitespace. Two or more whitespaces are squezed into one*)
 fun rmWs(str:string):string =
   case (getCharAtIndex(str,0), getCharAtIndex(str,1))  of
       (SOME(#" "), SOME(#" ")) => rmWs(String.substring(str,1, size(str) -1))
@@ -67,22 +68,6 @@ fun rmWs(str:string):string =
     end
     |(nil) => lines
 
-fun splitStrByNewline(str:string):string list =
-  let val substr = Substring.full(str)
-  in
-    map (fn e => Substring.string e) (Substring.fields (fn c => c = #"\n") substr )
-  end
-(*
-datatype Expr = Num of real|
-                Mul of real * real|
-                Div of real * real|
-                Add of real * real|
-                Sub of real * real; *)
-(*Tries to remove the first n elements from a list*) 
-fun dropN([], n:int) = []
-  | dropN(l,0) = l
-  | dropN(x::xs,n) = dropN(xs,n-1) 
- 
 fun getTok(tal: TokenAtLine) = 
  case tal of (t,_) => t 
 
@@ -98,45 +83,6 @@ exception UnexpectedSymbol of string * int;
 
 fun handleUnexpected(found:string,wanted:string,lineNo:int) = raise
   UnexpectedSymbol(found, lineNo)
-
-  (*
-fun splitExpr(toks:TokenAtLine list):Expr list = 
-  let 
-    val hightPredOper = ["*","/"]
-    val lowPredOper = ["-","+","**"]
-    
-    fun getExprByOp(n1,n2,oper,lineNo) =
-        case oper of
-             "*" => Mul(n1,n2)
-          | "/" => Div(n1,n2)
-          | "-" => Sub(n1,n2)
-          | "+" => Add(n1,n2)
-          | s => raise UnexpectedSymbol("The",lineNo) 
-
-    fun splitByHiOperPred(toks:TokenAtLine list):Expr list = 
-      let 
-        val (talNum1,talOper,talNum2,rest) = getFirstTripple(toks)
-        val talToNum = fn(tal) =>
-           case getTok(tal) of 
-                Litteral(Number(n)) => n 
-              | _ => handleUnexpected("erer","jejr",getLineNo(tal)) 
-        val talToOper= fn(tal) => 
-            case getTok(tal) of 
-                 Symbol(Operator(opp)) => opp 
-               | _ => handleUnexpected("erier","34j3j4",getLineNo(tal)) 
-        val(n1,oper,n2) = (talToNum(talNum1), talToOper(talOper),talToNum(talNum2)) 
-      in
-        if length(toks) = 0 then [] 
-        else 
-          case getTok(talOper) of 
-            Symbol(Operator(opVal)) => if member opVal hightPredOper 
-                          then getExprByOp(n1,n2,oper,getLineNo(talOper)) :: splitByHiOperPred(rest)
-                          else splitByHiOperPred(rest)
-            |_ => raise UnexpectedSymbol("4u4u4",getLineNo(talOper))
-      end
-  in
-    splitByHiOperPred(toks)
-  end  *)
 
 fun tokToStrWithType(t:Token) =
     let
@@ -158,129 +104,37 @@ fun tokToStrWithType(t:Token) =
             | PredicateOperator po => ts(po, "PredOp")
             | SyntaxSymbol ss => ts(ss, "Syntax"))
       end
-  datatype Expr = Num of real | MathExpr of Expr * symbol * Expr 
 
-
- (* fun solveExpr(expr:Expr):real = 
-    let 
-      fun solveBinExp(n1:real, n2:real, op:string) = 
-        case op of 
-             "+" => n1 + n2
-           | "-" => n1 - n2
-           | "*" => n1 * n2
-           | "/" => n1 / n2
-
-      fun solveSingle(exp:Expr):real = 
-        case exp of 
-              Num(n) => n
-             |MathExpr(me) => 
-              case me of
-                (Num(n1),Operator(op), Num(n2)) => solveBinExp(n1,n2,op)
-                |(Expr(e1),Operator(op),Expr(e2)) => 
-                    solveSingle(Expr(solveSingle(e1),op, solveSingle(e2)))
-      in
-         solveSingle(expr)  
-    end *)
-
-exception UnexpectedTokensException of string * int * int
-
-fun tokListToExpr( tokList: TokenAtLine list):Expr = 
-  case tokList of
-       [x] => 
-        (case getTok(x) of 
-             Litteral(Number(n)) => Num(n)
-           | t => raise InvalidSyntaxError(format("Expected number but got $",
-               [tokToStrWithType(t)]),getLineNo(x)))
-        |(x::xs) => 
-          let val tok1 = getTok(x)
-              val tok2 = getTok(hd(xs))
-              val rest = tl(xs)
-          in
-            case (tok1,tok2) of
-                 ( Litteral(Number(n)), Symbol(Operator(oper)) ) => 
-                    MathExpr(Num(n),Operator(oper),tokListToExpr(tl(rest)))
-                | (tok1,tok2) => raise
-                    UnexpectedTokensException(format("Expected number operator got $ $",[tokToStrWithType(tok1),tokToStrWithType(tok2)] ),
-                       getLineNo(x), getLineNo(hd(xs)))
-          end
-       | [] => Num(0.0)
-
+datatype Expr = Num of real | MathExpr of Expr * symbol * Expr 
 fun exprToStr(exp:Expr) = 
   case exp of 
        Num(n) => Real.toString(n)
      | mathexpr as MathExpr(e1, Operator(ops),e2) =>
-           "( Expr(" ^ exprToStr(e1) ^ " " ^ ops^ exprToStr(e2) ^ ")"
+           "( Expr(" ^ exprToStr(e1) ^ " " ^ ops ^ " " ^ exprToStr(e2) ^ ")"
      | _ => " "
 
-  val tokList:Token list = [Litteral(Number(1.0)),
-                            Symbol(Operator("*")),
-                             Litteral(Number(5.0)),
-                             Symbol(Operator("+")),
-                             Litteral(Number(9.0))]
+  exception unknownSymbolException of string 
+  exception wrongFormatException of string
 
- val exp = MathExpr(Num(1.0),Operator("*"), MathExpr(Num(5.0), Operator("+"),Num(9.0)))
- 
-val _ = print(exprToStr(exp))
-
-fun getTokenByKind(t:string):Token =
-  let val tComparator = member(t)
+fun evalExpr(expr:Expr):real = 
+  let fun solveBinExp(n1:real,oper:string,n2:real) = 
+        case oper of 
+          "+" => n1 + n2
+         | "-" => n1 - n2
+         | "*" => n1 * n2
+         | "/" => n1 / n2
+         | unknown => raise unknownSymbolException(format("Unnown symbol: '$' found in expression: $",
+          [unknown, exprToStr(expr)]))
   in
-    if tComparator keywords then Keyword(t)
-    else if tComparator functions then Function(t)
-    else if tComparator pipeFunctions then PipeFunction(t)
-    else if tComparator operators then Symbol(Operator(t))
-    else if tComparator predicateOperators then Symbol(PredicateOperator(t))
-    else if tComparator syntaxSymbols then Symbol(SyntaxSymbol(t))
-    else Identifier(t)
+    case expr of 
+      Num(n) => n
+     |MathExpr(me) => 
+        case me of
+           (Num(n1), Operator(oper), Num(n2)) => solveBinExp(n1,oper,n2)
+          |(Num(n1), Operator(oper),me as MathExpr(_,_,_)) =>
+              solveBinExp(n1,oper,evalExpr(me))
+          | _ => raise wrongFormatException("Wrong format in expression: " ^ exprToStr(expr))
   end
-
-
-(*A version which uses the Real-libarys function for parsing, but resturns the
-real or raises an exeption instead of returning a option*)
-fun realFromString(str:string):real =
- case Real.fromString(str) of
-     SOME(r) => r
-   | NONE => raise ConvesionFormatException(format("Could not parse the string intoa real", [str]))
-
- fun ssToStr(s:substring) = Substring.string s
- fun strToSs(s:string) = Substring.full s
-
- (*Parses the first number (including decimal  and negative numbers) from a string.
- The eventually non-numeric  characters(excluding -) at the start is discarded
- The number and the rest of the string is returned*)
-fun getFirstNumberFromString(str:string):(real*string) =
-  let
-   fun digitOrMinus c = Char.isDigit(c) orelse c = #"-"
-   fun nextNumPair(str:string):(string*string) =
-     let val (num, rest) = Substring.splitl digitOrMinus (strToSs str)
-     in (ssToStr num, ssToStr rest)
-     end
- in
-   if digitOrMinus(hdString(str)) then
-     let val (integerPart, rest) = nextNumPair str
-     in
-       if size(rest) > 0 andalso hdString rest = #"." then
-         let val (decimalPart, restAfterDecimal) = nextNumPair( rmHeadOfString rest)
-         in (realFromString(format("$.$", [integerPart, decimalPart])), restAfterDecimal)
-         end
-       else (realFromString(format("$.0",[integerPart])), rest)
-     end
-   else getFirstNumberFromString(rmHeadOfString(str))  (*Drop first char and retry*)
- end
-
-  (*Returns a pair of the first string surrounded by sep, and the rest.
-   The separator itself is removed fro mboth parts and characters at the start
-   of the string not matching sep is also removed.
-   If the separator is not found, two empty strings are returned
-  fun splitBySep(str:string, sep:string) =
-    if hdString str = sep then
-      let
-        val ssNoFirstSep = strToSs (rmHeadOfString(str))
-        val (strNoSeps, restnoSep) = Substring.splitl ssNoFirstSep fn c => c != sep
-      in
-        (strNoSeps,)
-    else if size(str) == 0 then ("","")
-    else splitBySep(rmHeadOfString str, sep) *)
 
   (*Get the first operator from a string and the rest of the string
    Unwanted chars are removed unitil a valid symbol occurs.
@@ -303,21 +157,39 @@ fun getFirstNumberFromString(str:string):(real*string) =
         then (Char.toString(hdString str ), String.substring(str,1, size(str) -1))
       else getOperatorFromString(rmHeadOfString str,l1,l2)
 
+fun getTokenByKind(t:string):Token =
+  let val tComparator = member(t)
+  in
+    if tComparator keywords then Keyword(t)
+    else if tComparator functions then Function(t)
+    else if tComparator pipeFunctions then PipeFunction(t)
+    else if tComparator operators then Symbol(Operator(t))
+    else if tComparator predicateOperators then Symbol(PredicateOperator(t))
+    else if tComparator syntaxSymbols then Symbol(SyntaxSymbol(t))
+    else Identifier(t)
+  end
+
+  fun strSubOption(str,idx) = 
+    if idx < size(str) then SOME(String.sub(str,idx))
+    else NONE
 
   fun scan(str:string, lineNo:int):TokenAtLine list =
     let
-      val firstChar = String.sub(str, 0)
-      val secondChar = String.sub(str, 1)
+      val firstChar = String.sub(str, 0) 
+      val secondCharOpt = strSubOption(str,1) 
+      val thirdCharOpt = strSubOption(str, 2)  
       val subString = Substring.full(str)
-
+      
       fun startOfIdentifier(c:char) = Char.isAlpha(firstChar) 
       fun whitespace(c:char) = c = #" "
       fun startOfString(c:char) = c = stringSep
       fun newline(c:char) = c = #"\n"
       fun startofSymbol(c:char) = member (Char.toString(firstChar)) validSymbols
       fun startOfDigit(c:char) = Char.isDigit(firstChar)
-      fun startOfnegativeDigit(sign:char, startDigit:char) = sign = #"-" andalso
-        Char.isDigit(startDigit)
+      fun startOfnegativeDigit(first:char, secondOpt:char option, thirdOpt:char option ) = 
+        case (secondOpt, thirdOpt) of
+            (SOME(c2), SOME(c3)) =>  first= #"(" andalso c2 = #"-" andalso Char.isDigit(c3)
+           | (_, _) => false
     in 
       if startOfIdentifier(firstChar) then
         let val (alfaToken, rest) = Substring.splitl Char.isAlpha subString
@@ -332,9 +204,15 @@ fun getFirstNumberFromString(str:string):(real*string) =
             val (strContent, rest) = Substring.splitl (fn c => c <> stringSep) ssNoFirstSep
         in  (Litteral(String(ssToStr strContent)), lineNo) :: scan(rmHeadOfString(ssToStr(rest)),lineNo)
         end
-
-      else if startOfDigit(firstChar) orelse startOfnegativeDigit(firstChar, secondChar) then
+      
+      else if startOfDigit(firstChar) then
         let val (number, rest) = getFirstNumberFromString(str)
+        in ( Litteral(Number(number)), lineNo) :: scan(rest, lineNo)
+        end
+
+      else if startOfnegativeDigit(firstChar,secondCharOpt ,thirdCharOpt) then 
+        let val parenRemoved = rmFirstCharMatchOfString(#")", rmHeadOfString(str))
+            val (number, rest) = getFirstNumberFromString(parenRemoved)
         in ( Litteral(Number(number)), lineNo) :: scan(rest, lineNo)
         end
 
@@ -346,9 +224,39 @@ fun getFirstNumberFromString(str:string):(real*string) =
           end
 
       else 
-        raise NoSuchSymolError(format("Unknown symbol $", [Char.toString(firstChar)]), lineNo)
+        raise NoSuchSymolError(formatln("Unknown symbol $", [Char.toString(firstChar)]), lineNo)
     end
     handle Subscript => []
+
+exception UnexpectedTokensException of string * int * int
+
+fun tokListToExpr( tokList: TokenAtLine list):Expr = 
+  case tokList of
+       [x] => 
+        (case getTok(x) of 
+             Litteral(Number(n)) => Num(n)
+           | t => raise InvalidSyntaxError(formatln("Expected number but got $",
+               [tokToStrWithType(t)]),getLineNo(x)))
+        |(x::xs) => 
+          let val tok1 = getTok(x)
+              val tok2 = getTok(hd(xs))
+              val rest = tl(xs)
+          in
+            case (tok1,tok2) of
+                 ( Litteral(Number(n)), Symbol(Operator(oper)) ) => 
+                    MathExpr(Num(n),Operator(oper),tokListToExpr(rest))
+                | (tok1,tok2) => raise
+                    UnexpectedTokensException(formatln("Expected number operator got $ $",[tokToStrWithType(tok1),tokToStrWithType(tok2)] ),
+                       getLineNo(x), getLineNo(hd(xs)))
+          end
+       | [] => Num(0.0)
+
+
+  val tokList:Token list = [Litteral(Number(1.0)),
+                            Symbol(Operator("*")),
+                             Litteral(Number(5.0)),
+                             Symbol(Operator("+")),
+                             Litteral(Number(9.0))]
 
 fun cat s =
   let
@@ -368,9 +276,6 @@ fun trimAndScan(str:string):TokenAtLine list =
     scan(str,1)
   end
 
-val q1 = "from Person as P\nfilter salary > 100\noutput P.adress, P.firstname"
-val q:string  = fileToStr("q1.txt")
-
 fun strTokenList(tl:TokenAtLine list):string =
   case tl of
      [] => ""
@@ -379,4 +284,21 @@ fun strTokenList(tl:TokenAtLine list):string =
         (tok, lineNo) =>
           format("[$] $", [$lineNo, tokToStrWithType(tok)]) ^ "\n" ^ strTokenList(xs)
 
-val _ = print(strTokenList(trimAndScan(q)));
+fun evalFromTxt(txt:string):string =
+ Real.toString(evalExpr(tokListToExpr(trimAndScan(txt))))
+
+val q1 = "from Person as P\nfilter salary > 100\noutput P.adress, P.firstname"
+val e1="1+2"
+
+val _ = test("1+1=2", "2.0", evalFromTxt("1+1"),I)
+val _ = test("1*2=2", "2.0", evalFromTxt("1*2"),I)
+val _ = test("2*2=4", "4.0", evalFromTxt("2*2"),I)
+val _ = test("2.0*2.0=4.0", "4.0", evalFromTxt("2.0*2.0"),I)
+val _ = test("4/2=2.0", "2.0", evalFromTxt("4/2"),I)
+val _ = test("sum of 1..9", "45.0", evalFromTxt("1+2+3+4+5+6+7+8+9"),I)
+val _ = test("+ and - of decimals","25.493", evalFromTxt("16.123+4.37+5"),I)
+val _ = test("mixed multi and add","8.0", evalFromTxt("2+2*3"),I)
+val _ = test("mixed multi,div and min","13.6", evalFromTxt("2*8-6/5*2"),I)
+val _ = test("mixed multi and div","1.0", evalFromTxt("2*3/6"),I)
+val _ = test("multiplication of decimals","29.52936", evalFromTxt("1.116*4.41*6"),I)
+val _ = test("mixed non-decimals","71.0", evalFromTxt("13*5+9-6/2*4+9"),I)
