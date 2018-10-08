@@ -47,7 +47,6 @@ val twoLenOperators = predicateOperatorsLenTwo @ syntaxSymbolsLenTwo
 val firstOfTwoLenOperators = map (fn e => Char.toString(String.sub(e,0))) twoLenOperators
 val validSymbols = predicateOperators @ syntaxSymbols @ operators @ firstOfTwoLenOperators
 
-val highPriOperators = ["*","/"]
 exception NoSuchSymolError of string * int
 exception InvalidSyntaxError of string * int
 
@@ -81,7 +80,6 @@ fun getFirstTripple(toks:TokenAtLine list):(TokenAtLine*TokenAtLine*TokenAtLine*
    ( List.nth(toks,0), List.nth(toks,1), List.nth(toks,2), dropN(toks, 2))  
 
 exception UnexpectedSymbol of string * int;
-exception MalformedExpression of string;
 
 fun handleUnexpected(found:string,wanted:string,lineNo:int) = raise
   UnexpectedSymbol(found, lineNo)
@@ -137,80 +135,6 @@ fun evalExpr(expr:Expr):real =
               solveBinExp(n1,oper,evalExpr(me))
           | _ => raise wrongFormatException("Wrong format in expression: " ^ exprToStr(expr))
   end
-
-  exception UnexpectedTokenException of string
-  (*Node: Left Val Right*)
-  datatype TreeLitteral = TreeNum of real | TreeOper of string
-  datatype ExprTree = 
-              EmptyNode |
-              treeLit of TreeLitteral | 
-              Node of ExprTree * TreeLitteral * ExprTree 
-
-  fun createExprTree(toks: TokenAtLine list):ExprTree = 
-    let fun createExprTreeFromRevList(revToks:TokenAtLine list):ExprTree = 
-      case revToks of 
-           [] => EmptyNode
-        | [x] => (
-             case getTok(x) of
-                 Litteral(Number(n)) => treeLit(TreeNum(n))
-                |Symbol(Operator(oper)) => treeLit(TreeOper(oper))
-                |unknown => raise UnexpectedTokenException(formatln("Expected number but got $", [tokToStrWithType(unknown)])) 
-              )
-         | (x::xs) => 
-             let val firstTok = getTok(x)
-                 val middleTok = getTok(hd(xs))
-             in
-               case middleTok of
-                    Symbol(Operator(oper)) => 
-                        Node(createExprTreeFromRevList([x]), TreeOper(oper),
-                        createExprTreeFromRevList(tl(xs)))
-                  | unknown => 
-                    raise UnexpectedTokenException(formatln("Expected symbol but got $",[tokToStrWithType(middleTok)]))
-            end
-      in
-      createExprTreeFromRevList(rev(toks))
-    end
-
-  fun evalExprTree(tree:ExprTree,source:string):real = 
-    let fun solveBinExp(n1:real,oper:string,n2:real) = 
-        case oper of 
-          "+" => n1 + n2
-         | "-" => n1 - n2
-         | "*" => n1 * n2
-         | "/" => n1 / n2
-         | unknown => raise unknownSymbolException(format("Unnown symbol: '$' found in expression: $",
-          [unknown, source]))
-    in
-      case tree of
-          treeLit(TreeNum(n)) => n
-         |Node(left,TreeOper(oper),right) => 
-                      solveBinExp(evalExprTree(right,source), oper,
-                      evalExprTree(left,source)) 
-         |treeLit(TreeOper(oper)) => 
-             raise MalformedExpression(formatln("Found  $ but expected number in expression: $",
-            [oper,source] ))
-         |_ => raise MalformedExpression(formatln("in expression $", [source]))
-    end
-
-fun repeatStr(str:string, 0) = ""
-  | repeatStr(str:string, 1) = str
-  | repeatStr(str, n) = str ^ repeatStr(str,n-1) 
-
-
- fun exprTreeToStr(exprTree: ExprTree) = 
-   let fun treeLitToStr(lit:TreeLitteral) = 
-      case lit of 
-         TreeNum(n) => Real.toString(n)
-        |TreeOper(oper) => oper 
-      fun pad(num) = repeatStr(" ",num)
-   in
-    case exprTree of
-        Node(left,lit,right) =>  
-          format("Tree( [$], L( $ ), R( $  )", 
-            [treeLitToStr(lit), exprTreeToStr(left), exprTreeToStr(right)])
-       |EmptyNode => ""
-       |treeLit(lit) => treeLitToStr(lit) 
-   end
 
   (*Get the first operator from a string and the rest of the string
    Unwanted chars are removed unitil a valid symbol occurs.
@@ -352,37 +276,33 @@ fun trimAndScan(str:string):TokenAtLine list =
     scan(str,1)
   end
 
-fun tokListToStr(tl:TokenAtLine list):string =
+fun strTokenList(tl:TokenAtLine list):string =
   case tl of
      [] => ""
     |(x::xs) =>
       case x of
         (tok, lineNo) =>
-          format("[$] $", [$lineNo, tokToStrWithType(tok)]) ^ "\n" ^ tokListToStr(xs)
+          format("[$] $", [$lineNo, tokToStrWithType(tok)]) ^ "\n" ^ strTokenList(xs)
 
 fun evalFromTxt(txt:string):string =
- Real.toString(evalExprTree(createExprTree(trimAndScan(txt)),txt))
+ Real.toString(evalExpr(tokListToExpr(trimAndScan(txt))))
 
 val q1 = "from Person as P\nfilter salary > 100\noutput P.adress, P.firstname"
 val e1="1+2"
 
-val toks = trimAndScan("1+1")
-val _ = print("Toks: " ^ tokListToStr(toks) ^ "\n")
-
-val exprTree= createExprTree(toks)
-val _ = print("Expr tree: " ^ exprTreeToStr(exprTree))
-
-val _ = print("Result: " ^ Real.toString(evalExprTree(exprTree,"12/4/6")) ^ "\n")
-
 fun testExpr(expr:string, ans:string) = test(expr, ans, evalFromTxt(expr),I) 
-fun printTree(expr:string) =
-  print(exprTreeToStr(createExprTree(trimAndScan("1+2*3"))))
+val _ = print(exprToStr(tokListToExpr(trimAndScan("12/6/4"))))
+val _ = testExpr("4/6/21","0.5")
 
-val _ = testExpr("1+1","2.0")
-val _ = testExpr("2*6","12.0")
-val _ = testExpr("1.22+2.44","3.66")
-val _ = testExpr("1+2+3","6.0")
-val _ = testExpr("1.123+4.16+8.1+9","22.383")
-val _ = testExpr("1+2*3","7.0")
-val _ = printTree("1+2*3")
-val _ = testExpr("32/8/5","0.8")
+val _ = test("1+1=2", "2.0", evalFromTxt("1+1"),I)
+val _ = test("1*2=2", "2.0", evalFromTxt("1*2"),I)
+val _ = test("2*2=4", "4.0", evalFromTxt("2*2"),I)
+val _ = test("2.0*2.0=4.0", "4.0", evalFromTxt("2.0*2.0"),I)
+val _ = test("4/2=2.0", "2.0", evalFromTxt("4/2"),I)
+val _ = test("sum of 1..9", "45.0", evalFromTxt("1+2+3+4+5+6+7+8+9"),I)
+val _ = test("+ and - of decimals","25.493", evalFromTxt("16.123+4.37+5"),I)
+val _ = test("mixed multi and add","8.0", evalFromTxt("2+2*3"),I)
+val _ = test("mixed multi,div and min","13.6", evalFromTxt("2*8-6/5*2"),I)
+val _ = test("mixed multi and div","18", evalFromTxt("4*3/6*9"),I)
+val _ = test("multiplication of decimals","29.52936", evalFromTxt("1.116*4.41*6"),I)
+val _ = test("mixed non-decimals","71.0", evalFromTxt("13*5+9-6/2*4+9"),I)
