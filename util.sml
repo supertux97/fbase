@@ -21,6 +21,18 @@ fun op $ (n:int) = Int.toString(n)
 
 fun I(a) = a
 
+(*Splits one list into two at the point where the predicate is no longer true.
+The first elem where the predicate is not true gets placed in the second list*)
+fun splitList(l:'a list, pred:('a -> bool)):('a list*'a list) = 
+  let fun split(firstList, secondList) = 
+        case secondList of 
+             (x::xs) => if pred(x) then split(x::firstList,xs)
+                        else (rev(firstList), secondList)
+             | []    => (firstList,[]) 
+  in
+    split([],l)
+  end
+
 (*Example usage: printf("Name: $1 Age: $2", ["Name", $15]*)
 fun format(str:string, vals:string list) =
   let
