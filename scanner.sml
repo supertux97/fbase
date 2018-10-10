@@ -118,26 +118,6 @@ fun exprToStr(exp:Expr) =
   exception unknownSymbolException of string 
   exception wrongFormatException of string
 
-fun evalExpr(expr:Expr):real = 
-  let fun solveBinExp(n1:real,oper:string,n2:real) = 
-        case oper of 
-          "+" => n1 + n2
-         | "-" => n1 - n2
-         | "*" => n1 * n2
-         | "/" => n1 / n2
-         | unknown => raise unknownSymbolException(format("Unnown symbol: '$' found in expression: $",
-          [unknown, exprToStr(expr)]))
-  in
-    case expr of 
-      Num(n) => n
-     |MathExpr(me) => 
-        case me of
-           (Num(n1), Operator(oper), Num(n2)) => solveBinExp(n1,oper,n2)
-          |(Num(n1), Operator(oper),me as MathExpr(_,_,_)) =>
-              solveBinExp(n1,oper,evalExpr(me))
-          | _ => raise wrongFormatException("Wrong format in expression: " ^ exprToStr(expr))
-  end
-
   exception UnexpectedTokenException of string
   (*Node: Left Val Right*)
   datatype TreeLitteral = TreeNum of real | TreeOper of string
@@ -167,7 +147,7 @@ fun evalExpr(expr:Expr):real =
             | (x::xs) => 
                let val firstTok = getTok(x)
                    val middleTok = getTok(hd(xs))
-              in
+               in
                  case middleTok of
                       Symbol(Operator(oper)) => 
                         if member oper highPriOperators then 
@@ -207,13 +187,18 @@ fun evalExpr(expr:Expr):real =
       createExprTreeFromRevList(toks)
     end
 
+    exception DivisionByZeroException of string
   fun evalExprTree(tree:ExprTree,source:string):real = 
     let fun solveBinExp(n1:real,oper:string,n2:real) = 
         case oper of 
           "+" => n1 + n2
-         | "-" => n1 - n2
+         | "-" =>  n1 - n2
          | "*" => n1 * n2
-         | "/" => n1 / n2
+         | "/" => if Real.==(0.0,n2) then 
+                    raise DivisionByZeroException(
+                      formatln(
+                      "Cannot divide $ by zero in expression $",[Real.toString(n1), source]))
+                  else n1 / n2
          | unknown => raise unknownSymbolException(format("Unnown symbol: '$' found in expression: $",
           [unknown, source]))
     in
@@ -298,6 +283,10 @@ fun getTokenByKind(t:string):Token =
       fun newline(c:char) = c = #"\n"
       fun startofSymbol(c:char) = member (Char.toString(firstChar)) validSymbols
       fun startOfDigit(c:char) = Char.isDigit(firstChar)
+      fun startOfSubtraction(c1:char,c2Opt:char option) = 
+        case c2Opt of 
+            SOME(c2) => c1 = #"-" andalso Char.isDigit(c2)
+           |NONE => false 
       fun startOfnegativeDigit(first:char, secondOpt:char option, thirdOpt:char option ) = 
         case (secondOpt, thirdOpt) of
             (SOME(c2), SOME(c3)) =>  first= #"(" andalso c2 = #"-" andalso Char.isDigit(c3)
@@ -316,7 +305,12 @@ fun getTokenByKind(t:string):Token =
             val (strContent, rest) = Substring.splitl (fn c => c <> stringSep) ssNoFirstSep
         in  (Litteral(String(ssToStr strContent)), lineNo) :: scan(rmHeadOfString(ssToStr(rest)),lineNo)
         end
-      
+      else if startOfSubtraction(firstChar, secondCharOpt) then 
+        let val (number,rest) = getFirstNumberFromString(rmHeadOfString(str))
+        in  (getTokenByKind("+"),lineNo) ::
+             (Litteral(Number(#1(getFirstNumberFromString("-" ^
+             Real.toString(number))))),lineNo):: scan(rest,lineNo)
+        end
       else if startOfDigit(firstChar) then
         let val (number, rest) = getFirstNumberFromString(str)
         in ( Litteral(Number(number)), lineNo) :: scan(rest, lineNo)
@@ -404,13 +398,15 @@ fun printTree(expr:string) =
 
 fun testExpr(expr:string, ans:string) = test(expr, ans, evalFromTxt(expr),I) 
 
-val _ = testExpr("1+1","2.0")
 val _ = testExpr("2*6","12.0")
 val _ = testExpr("1.22+2.44","3.66")
 val _ = testExpr("1+2+3","6.0")
 val _ = testExpr("1.123+4.16+8.1+9","22.383")
 val _ = testExpr("1+2*3","7.0")
 val _ = testExpr("32/8/5","0.8")
-   
-val _ = printTree("32/8/5")
-
+val _ = testExpr("1-2-3-4","~8.0")
+val _ = testExpr("(-2)/4/2","~0.25")
+val _ = testExpr("(-2)*(-6)","12.0")
+val _ = testExpr("(-2)*(-6)*(-12.45)","~149.4")
+val _ = testExpr("1/2/3/4","0.04166666666")
+val _ = testExpr("1-2-3-4-5-6-7-8-9","~43.0")

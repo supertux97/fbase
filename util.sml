@@ -15,11 +15,37 @@ fun dropN([], n:int) = []
   | dropN(l,0) = l
   | dropN(x::xs,n) = dropN(xs,n-1) 
 
+fun tlString(str:string):string = String.substring(str,1,size(str) -1)
+fun tlStringOpt(str:string):string option = 
+  if size(str) = 0 then NONE 
+  else SOME(String.substring(str,1,size(str) -1))
 fun hdString(str:string):char = String.sub(str,0)
-
+fun hdStringOpt(str:string):char option = 
+  if size(str) = 0 then NONE
+  else SOME(String.sub(str,0))
+fun println(msg:string) = print(msg ^ "\n")
 fun op $ (n:int) = Int.toString(n)
 
 fun I(a) = a
+
+fun splitStr(str:string) = 
+  (hdString(str),tlString(str))
+
+(*Creates a tring, character by character as long as the pred for the curent
+char is true*)
+fun takeWhileStr(str:string, pred:(char->bool)) = 
+  case (hdStringOpt(str), tlStringOpt(str)) of 
+       (SOME(x),SOME(xs)) => if pred(x) then Char.toString(x) ^ takeWhileStr(xs, pred)
+                       else ""
+      |(_,_) => ""
+
+(*Removes characters from a string as long as pred is true.
+ Returns: The Resulting string*)
+fun dropWhileStr(str:string, pred:(char->bool)) = 
+  case (hdStringOpt(str), tlStringOpt(str)) of 
+       (SOME(x),SOME(xs)) => if pred(x) then dropWhileStr(xs, pred)
+                       else Char.toString(x) ^ xs
+      |(_,_) => ""
 
 (*Splits one list into two at the point where the predicate is no longer true.
 The first elem where the predicate is not true gets placed in the second list*)
@@ -62,7 +88,6 @@ fun rmFirstCharMatchOfString(c:char,str:string) =
     in ssToStr beforeMatch ^ rmHeadOfString(ssToStr(afterMatch))
   end
 
-fun tlString(str:string):string = String.substring(str,1,size(str) -1)
 (*A version which uses the Real-libarys function for parsing, but resturns the
 real or raises an exeption instead of returning a option*)
 fun realFromString(str:string):real =
