@@ -1,5 +1,6 @@
-fun main s = print("main")
-
+fun main a = a
+structure Util = 
+struct
 exception NotEnoughListElements of string;
 exception ConvesionFormatException of string
 fun ssToStr(s:substring) = Substring.string s
@@ -8,6 +9,7 @@ fun rmHeadOfString(str:string):string = String.substring(str,1,size(str)-1)
 fun rmTailOfString(str:string):string = String.substring(str,0,size(str)-2)
 
 fun strToSs(s:string) = Substring.full s
+
 fun listToStr ([], toStr:('a->string),sep:string):string = ""
   | listToStr(x::xs, toStr:('a->string),sep:string) = toStr x ^ sep ^ listToStr(xs,toStr,sep)
 
@@ -78,6 +80,43 @@ fun format(str:string, vals:string list) =
                |(f,r) => Char.toString(f) ^ format(listToStr(r,Char.toString,""), vals)
   end;
 
+fun sum [] = 0
+   |sum(x::xs) = x + sum(xs)
+
+fun sumTail(l) = 
+  let fun sumFrom([], summed) = summed
+	   |sumFrom(x::xs,summed) = sumFrom(xs,summed + x)
+  in
+	  sumFrom(l, 0)
+end
+
+fun fillList(n) = 
+  let fun fillInner(0,l) = l
+        | fillInner(n,l) = fillInner(n-1, n::l)
+  in
+    fillInner(n,[])
+  end
+
+
+fun fib 0 = 1
+   |fib 1 = 1
+   |fib n = fib(n-1) + fib(n-2)
+
+fun fibTail(n)= 
+  let fun fibInner(n1, n2, remain) = 
+      if remain <= 1 then n2  
+      else fibInner(n2, n1 + n2, remain-1)
+  in 
+    fibInner(1, 1, n)
+  end
+
+fun main a = 
+  let 
+    val l = fillList(100000)
+    val sum = sumTail(l)
+  in 
+    1
+  end
 fun formatln(str:string, vals:string list) = 
   format(str,vals) ^ "\n"
 
@@ -188,4 +227,4 @@ fun getCharAtIndex(str:string, index:int):char option =
   in
     getCharAtIndex(str, index, 0)
   end
-
+end;
