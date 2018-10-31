@@ -1,3 +1,4 @@
+use "listUtil.sml";
 fun main a = a
 structure Util = 
 struct
@@ -9,13 +10,6 @@ fun rmHeadOfString(str:string):string = String.substring(str,1,size(str)-1)
 fun rmTailOfString(str:string):string = String.substring(str,0,size(str)-2)
 
 fun strToSs(s:string) = Substring.full s
-
-fun listToStr ([], toStr:('a->string),sep:string):string = ""
-  | listToStr(x::xs, toStr:('a->string),sep:string) = toStr x ^ sep ^ listToStr(xs,toStr,sep)
-
-fun dropN([], n:int) = []
-  | dropN(l,0) = l
-  | dropN(x::xs,n) = dropN(xs,n-1) 
 
 fun tlString(str:string):string = String.substring(str,1,size(str) -1)
 fun tlStringOpt(str:string):string option = 
@@ -42,24 +36,12 @@ fun takeWhileStr(str:string, pred:(char->bool)) =
       |(_,_) => ""
 
 (*Removes characters from a string as long as pred is true.
- Returns: The Resulting string*)
+ Returns: The Resulting string *)
 fun dropWhileStr(str:string, pred:(char->bool)) = 
   case (hdStringOpt(str), tlStringOpt(str)) of 
        (SOME(x),SOME(xs)) => if pred(x) then dropWhileStr(xs, pred)
                        else Char.toString(x) ^ xs
       |(_,_) => ""
-
-(*Splits one list into two at the point where the predicate is no longer true.
-The first elem where the predicate is not true gets placed in the second list*)
-fun splitList(l:'a list, pred:('a -> bool)):('a list*'a list) = 
-  let fun split(firstList, secondList) = 
-        case secondList of 
-             (x::xs) => if pred(x) then split(x::firstList,xs)
-                        else (rev(firstList), secondList)
-             | []    => (firstList,[]) 
-  in
-    split([],l)
-  end
 
 (*Example usage: printf("Name: $1 Age: $2", ["Name", $15]*)
 fun format(str:string, vals:string list) =
@@ -76,27 +58,9 @@ fun format(str:string, vals:string list) =
                |(_,nil) => str
                |(#"$",r) =>
                    if(vals = nil) then raise NotEnoughListElements("Missing list elements")
-                   else hd vals ^ format(listToStr(r,Char.toString,""), tl vals)
-               |(f,r) => Char.toString(f) ^ format(listToStr(r,Char.toString,""), vals)
+                   else hd vals ^ format(ListUtil.listToStr(r,Char.toString,""), tl vals)
+               |(f,r) => Char.toString(f) ^ format(ListUtil.listToStr(r,Char.toString,""), vals)
   end;
-
-fun sum [] = 0
-   |sum(x::xs) = x + sum(xs)
-
-fun sumTail(l) = 
-  let fun sumFrom([], summed) = summed
-	   |sumFrom(x::xs,summed) = sumFrom(xs,summed + x)
-  in
-	  sumFrom(l, 0)
-end
-
-fun fillList(n) = 
-  let fun fillInner(0,l) = l
-        | fillInner(n,l) = fillInner(n-1, n::l)
-  in
-    fillInner(n,[])
-  end
-
 
 fun fib 0 = 1
    |fib 1 = 1
@@ -110,13 +74,6 @@ fun fibTail(n)=
     fibInner(1, 1, n)
   end
 
-fun main a = 
-  let 
-    val l = fillList(100000)
-    val sum = sumTail(l)
-  in 
-    1
-  end
 fun formatln(str:string, vals:string list) = 
   format(str,vals) ^ "\n"
 
@@ -166,57 +123,8 @@ fun splitStrByNewline(str:string):string list =
     map (fn e => Substring.string e) (Substring.fields (fn c => c = #"\n") substr )
   end
 
-fun minOfIntList(l: int list):(int*int) =
-  let
-  fun minOfIntList(l: int list, i:int, min:int, minIdx:int) =
-    if i = List.length(l) then (min, minIdx)
-    else
-      let val curr = List.nth(l,i)
-      in
-        if(curr < min) then minOfIntList(l,i+1,curr,i)
-        else minOfIntList(l,i+1,min,minIdx)
-      end
-    in minOfIntList(l,0,hd l,0)
-  end
-
-fun removeElemAtIndex(l:'a list,i:int) =
-let
-  fun removeElemAtIndex([], i:int, curr:int) = []
-    | removeElemAtIndex(x::xs, i, curr) =
-      if curr = i then xs
-      else x:: removeElemAtIndex(xs, i, curr+1)
-  in
-    removeElemAtIndex(l,i,0)
-  end
-
-(*Returns a list consisting of just the first n characters of every element in a
-string list.
- Example: ["abc","cake","def"] -> ["a","c","d"]
- Raises: Subscript(from String.sub) if there is elements
-fun firstNCharsOfStringList(l:string list,n:int) = 
-  case l of
-      [] => []
-     |(x::xs) => String.substring(x,n) :: firstCharsOfStringList(xs) *)
-
 fun fileToStr(fname:string):string =
   TextIO.inputAll(TextIO.openIn(fname))
-
-
-fun insertionSort [] = []
-  | insertionSort (l:int list) =
-    let
-      val (minElem, minIdx) = minOfIntList(l)
-    in minElem :: insertionSort(removeElemAtIndex(l,minIdx))
-    end
-
-
-(*adapted with variations from "ML for the working programmer"*)
-fun member(x) l = List.exists (fn elem => elem = x) l
-
-(*Adopted from "Ml for the working programmer"*)
-infix memberOf
-fun (x memberOf []) = false
-| (x memberOf (e::r)) = (x=e) orelse (x memberOf r)
 
 fun getCharAtIndex(str:string, index:int):char option =
   let

@@ -1,0 +1,29 @@
+=Strukturer=
+Signaturer som typen til strukturene
+signaturer som interfacer som kan impelemtneres av strukturer 
+signaturer lar oss skjule spesifikke verdier eller funksjoner fra utsiden. 
+Signaturer tilbyr derfor enkapsulering.
+sette sammen strukturer og signaturer for aa forme hierkier
+functors skaper polymorphisme
+strukturer uten abstrake typer kan faa sin integritet ødelagt ved at
+det pattern matches paa typens konstruktør og gjøres ugyldige operasjoner.
+  eks kan man i en struktur for køer velge aa hente ut det sist insatte elementet og dermed
+  bryte mot køens natur
+  gjennsomsiktig/opaque: om den indre sturkturen til typene definert skal vises eller skjules. Dersom de vises vil man
+  kunne utnytte dette og bryte med integriteten. Opaque vil sørge for at typen forblir abstrakt, man vil ikke 
+  vite hva den er og kan dermed heller ikke utnytte denne kunnskapen. Dermed blir integriteten enklere aa holde
+  og typen kan ogsaa emklere endres seinere.
+  Et annet aspekt er at verdier av en gjennomsktig type vil kunne benyttes for likhetstester. Denne likhetstesten
+  vil(hvis den ikke er oversrkevet i strukturen) bruke konvensjonell sammenlikning og dermed kunne gi feil resultat
+Strukturer: klasse med statiske metoder og statiske konstant-felter
+            namespaces
+
+functors: lar deg ta imot en struktur som parameter. Det blir som en abstrakt type, men den har abstrakte funksjoner 
+i tillegg, functoren vil da ta imot en samling med typer,verdier og funksjoner den kan benytte. Blir litt som en
+funksjon i OOP som tar imot et objekt av en abstrakt type
+functors blir litt som arv av en abstrakt type ved at man faar tilgang til visse typer og funskoner. Functoren
+gjør dette svært enkelt..
+Signaturer: enkapsulering, interfacer, polymorphisme,
+functors: strukturer som parametere, polyumorphisme
+
+type parametre->polymophisme 

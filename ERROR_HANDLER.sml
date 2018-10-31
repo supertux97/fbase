@@ -15,7 +15,12 @@ signature ERROR_HANDLER =
     val noSuchSymbolExpr: string * string -> exn
 
     (*Expected*Found*Context*)
-    val unexpectedSymbol: string * string * string -> exn
+    val unexpectedSymbolExpr: string * string * string -> exn
+
+    (*Expected*Found*lineNo*)
+    val unexpectedSymbol: string * string * int-> exn
+
+    val emptyQuery: unit -> exn
 
     (*val aritmetric: string * int *)
  end;

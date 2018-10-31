@@ -1,10 +1,10 @@
-(*Description*)
 use "util.sml";
+use "listUtil.sml";
 use "utest.sml"; 
 use "ErrorHandler.sml";
 
-fun main a = print("Hello sml");
-
+structure Scanner = 
+struct
 datatype litteralType =
   String of string
   | Bool of bool
@@ -89,28 +89,30 @@ fun convToken(tok:Token, f:(Token -> 'a)) = f(tok)
 
 (*Gets the first tree tokens and then the rest*)
 fun getFirstTripple(toks:TokenAtLine list):(TokenAtLine*TokenAtLine*TokenAtLine*TokenAtLine list) =
-   ( List.nth(toks,0), List.nth(toks,1), List.nth(toks,2), Util.dropN(toks, 2))  
+   ( List.nth(toks,0), List.nth(toks,1), List.nth(toks,2), ListUtil.dropN(toks, 2))  
 
-fun tokToStrWithType(t:Token) =
-    let
-       fun ts(value:string, kind:string) = Util.format("$:$", [value, kind])
-    in
+fun tokValAndKind(value:string, kind:string) = Util.format("$:$", [value, kind])
+fun tokVal(value:string, kind:string) = value
+
+(*Creates a string representation of a given token. The supplied function
+toStrFunc allows for various kinds of formatting*)
+fun tokToStr(t:Token,toStrFunc:(string*string->string)):string =
      case t of
-      Identifier i => ts(i, "Id")
-    | Function f => ts(f, "Fun")
-    | PipeFunction pf => ts(pf, "PipeFun")
-    | Keyword k => ts(k,"Keyword")
-    | Litteral l =>
+     Identifier i => toStrFunc(i, "Id")
+    |Function f => toStrFunc(f, "Fun")
+    |PipeFunction pf => toStrFunc(pf, "PipeFun")
+    |Keyword k => toStrFunc(k,"Keyword")
+    |Litteral l =>
       ( case l of
-         String s => ts(s, "String")
-        |Bool b => ts( if b then "true" else "false", "Bool")
-        |Number n => ts(Real.toString(n), "Num") )
+         String s => toStrFunc(s, "String")
+        |Bool b => toStrFunc( if b then "true" else "false", "Bool")
+        |Number n => toStrFunc(Real.toString(n), "Num") )
     |Symbol s =>
           (case s of
-             Operator opp => ts(opp, "Op")
-            | PredicateOperator po => ts(po, "PredOp")
-            | SyntaxSymbol ss => ts(ss, "Syntax"))
-      end
+             Operator opp => toStrFunc(opp, "Op")
+            |PredicateOperator po => toStrFunc(po, "PredOp")
+            |SyntaxSymbol ss => toStrFunc(ss, "Syntax"))
+
 
   (*Node: Left Val Right*)
   datatype TreeLitteral = TreeNum of real | TreeOper of string
@@ -135,9 +137,9 @@ fun tokToStrWithType(t:Token) =
          |Node(left,TreeOper(oper),right) => 
                       solveBinExp(evalExprTree(left,source), oper,
                       evalExprTree(right,source)) 
-         |treeLit(TreeOper(oper)) => raise ErrorHandler.unexpectedSymbol(
+         |treeLit(TreeOper(oper)) => raise ErrorHandler.unexpectedSymbolExpr(
                                      "number",oper, source)
-         |unknown => raise ErrorHandler.unexpectedSymbol("number","other",source)
+         |unknown => raise ErrorHandler.unexpectedSymbolExpr("number","other",source)
     end
 
 fun mkTokAtLine(tok:Token, line:int):TokenAtLine = (tok, line)
@@ -158,7 +160,8 @@ fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree =
              case getTok(tok) of
                    Litteral(Number(n)) => treeLit(TreeNum(n))
                   |Symbol(Operator(oper)) => treeLit(TreeOper(oper))
-                  |unknown => raise ErrorHandler.unexpectedSymbol("number or operator",tokToStrWithType(unknown), expr)
+                  |unknown => raise ErrorHandler.unexpectedSymbolExpr("number or operator",
+                   tokToStr(unknown, tokValAndKind), expr)
 
        fun firstHiPredExprAndRest(toks:TokenAtLine list) =
               let val first = List.nth(toks,0)
@@ -170,7 +173,8 @@ fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree =
             end
 
        fun handleExpectedOperator(found:Token) = 
-         raise ErrorHandler.unexpectedSymbol("operrator",tokToStrWithType(found),expr)
+         raise
+         ErrorHandler.unexpectedSymbolExpr("operrator",tokToStr(found,tokValAndKind),expr)
 
  in
    case toks of 
@@ -183,7 +187,7 @@ fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree =
                  case secondTok of
                    Symbol(Operator(oper)) => 
                         (*Expressions of high predecence is calculated beforehand*)
-                        if Util.member oper highPriOperators then 
+                        if ListUtil.member oper highPriOperators then 
                           let val (num1, opp, num2, rest) = firstHiPredExprAndRest(toks)
                               val hiPredEvaluated =
                                 evalExprTree(Node(
@@ -234,16 +238,16 @@ fun repeatStr(str:string, 0) = ""
         let val firstTwoChars = String.substring(str,0,2)
             val firstChar = String.substring(str,0,1)
         in 
-          if Util.member firstTwoChars l2 then (firstTwoChars, String.substring(str, 2, size(str) -2)) 
-          else if Util.member firstChar l1 then (firstChar, String.substring(str,1, size(str) -1))
+          if ListUtil.member firstTwoChars l2 then (firstTwoChars, String.substring(str, 2, size(str) -2)) 
+          else if ListUtil.member firstChar l1 then (firstChar, String.substring(str,1, size(str) -1))
           else ("",str)
         end
-      else if Util.member (Char.toString(Util.hdString(str))) l1 
+      else if ListUtil.member (Char.toString(Util.hdString(str))) l1 
         then (Char.toString(Util.hdString str ), String.substring(str,1, size(str) -1))
       else getOperatorFromString(Util.rmHeadOfString str,l1,l2)
 
 fun getTokenByKind(t:string):Token =
-  let val tComparator = Util.member(t)
+  let val tComparator = ListUtil.member(t)
   in
     if tComparator keywords then Keyword(t)
     else if tComparator functions then Function(t)
@@ -269,7 +273,7 @@ fun getTokenByKind(t:string):Token =
       fun whitespace(c:char) = c = #" "
       fun startOfString(c:char) = c = stringSep
       fun newline(c:char) = c = #"\n"
-      fun startofSymbol(c:char) = Util.member (Char.toString(firstChar)) validSymbols
+      fun startofSymbol(c:char) = ListUtil.member (Char.toString(firstChar)) validSymbols
       fun startOfDigit(c:char) = Char.isDigit(firstChar)
       fun startOfSubtraction(c1:char,c2Opt:char option) = 
         case c2Opt of 
@@ -337,7 +341,7 @@ fun cat s =
 fun trimAndScan(str:string):TokenAtLine list =
   let
     val noComments = rmComments(Util.splitStrByNewline(str))
-    val noCommentOrWhitespace = rmWs(Util.listToStr(noComments,Util.I," "))
+    val noCommentOrWhitespace = rmWs(ListUtil.listToStr(noComments,Util.I," "))
   in
     scan(noCommentOrWhitespace,1)
   end
@@ -348,7 +352,7 @@ fun tokListToStr(tl:TokenAtLine list):string =
     |(x::xs) =>
       case x of
         (tok, lineNo) =>
-          Util.format("[$] $", [Util.$lineNo, tokToStrWithType(tok)]) ^ "\n" ^ tokListToStr(xs)
+          Util.format("[$] $", [Util.$lineNo, tokToStr(tok,tokValAndKind)]) ^ "\n" ^ tokListToStr(xs)
 
 fun evalFromTxt(txt:string):string =
   Real.toString(evalExprTree(createExprTree(trimAndScan(txt),txt),txt))
@@ -357,18 +361,25 @@ fun printTree(expr:string) =
   print(exprTreeToStr(createExprTree(trimAndScan(expr),expr)))
 
 fun testExpr(expr:string, ans:string) = test(expr, ans, evalFromTxt(expr),Util.I) 
+fun main a = 
+  let 
+  val _ = testExpr("2*6","12.0")
+  val _ = testExpr("1.22+2.44","3.66")
+  val _ = testExpr("1+2+3","6.0")
+  val _ = testExpr("1.123+4.16+8.1+9","22.383")
+  val _ = testExpr("1+2*3","7.0")
+  val _ = testExpr("32/8/5","0.8")
+  val _ = testExpr("1-2-3-4","~8.0")
+  val _ = testExpr("1+2*3", "7.0")
+  val _ = testExpr("(-2)/4/2","~0.25")
+  val _ = testExpr("(-2)*(-6)","12.0")
+  val _ = testExpr("(-2)*(-6)*(-12.45)","~149.4")
+  val _ = testExpr("12/6/4","0.5")
+  val _ = testExpr("1-2-3-4-5-6-7-8-9","~43.0")
+  val _ = printTree("2*4+3")
 
-val _ = testExpr("2*6","12.0")
-val _ = testExpr("1.22+2.44","3.66")
-val _ = testExpr("1+2+3","6.0")
-val _ = testExpr("1.123+4.16+8.1+9","22.383")
-val _ = testExpr("1+2*3","7.0")
-val _ = testExpr("32/8/5","0.8")
-val _ = testExpr("1-2-3-4","~8.0")
-val _ = testExpr("1+2*3", "7.0")
-val _ = testExpr("(-2)/4/2","~0.25")
-val _ = testExpr("(-2)*(-6)","12.0")
-val _ = testExpr("(-2)*(-6)*(-12.45)","~149.4")
-val _ = testExpr("12/6/4","0.5")
-val _ = testExpr("1-2-3-4-5-6-7-8-9","~43.0")
-val _ = printTree("2*4+3")
+  in 
+    a
+  end
+
+end;

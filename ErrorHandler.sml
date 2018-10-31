@@ -11,6 +11,7 @@ structure ErrorHandler:ERROR_HANDLER =
     exception UnexpectedSymbolException of string
     exception NoSuchSymbolException of string
     exception AritmetricException of string
+    exception EmptyQueryException of string
 
     fun warning(degree:severity, explanation:string, lineNo:int):unit = 
       let val typeWarning = 
@@ -35,8 +36,16 @@ structure ErrorHandler:ERROR_HANDLER =
      "ERROR(NoSuchSymbol): The symbol $ does not exist in expression \"$\"", 
       [symbol, expr]))
 
-    fun unexpectedSymbol(expected:string, found:string, context:string):exn= 
+    fun unexpectedSymbolExpr(expected:string, found:string, context:string):exn= 
      raise UnexpectedSymbolException(
-      Util.format("ERROR:(UnexpectedSymbol): Excptected $ but got $ in \"$\"",
+      Util.format("ERROR:(unexpectedSymbolExpr): Excptected $ but got $ in \"$\"",
       [expected, found, context]))
+
+    fun unexpectedSymbol(expected:string, found:string, lineNo:int):exn= 
+     raise UnexpectedSymbolException(
+      Util.format("ERROR:(unexpectedSymbolExpr): Excptected $ but got $ at line no. $",
+      [expected, found, Util.$(lineNo)]))
+
+    fun emptyQuery() = 
+      raise EmptyQueryException("ERROR: (EmptyQuery): The query cannot be empty")
   end;
