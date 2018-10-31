@@ -142,6 +142,17 @@ fun tokToStrWithType(t:Token) =
 
 fun mkTokAtLine(tok:Token, line:int):TokenAtLine = (tok, line)
 
+
+(*Creates an expression tree for a list of tokens. 
+
+ The function creates the tree by creating a parent node for the operator, a left child for the first value
+ and a right child for the rest of the expression. Eg: 1+2+3 will result in the
+ tree: Parent:+ Left:1 Right:(Parent:+ Left:2 Right:3)
+ The function printTree can be used to get a textual representation of a tree
+ in this style.
+
+ High predenecence operations (division and multiplication) is evaluated before beeing inserted into the
+ tree. Eg: 2*4+3 will result in the tree: Parent:+ Left:8 Right:3*)
 fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree = 
   let  fun createSingleNode(tok: TokenAtLine):ExprTree = 
              case getTok(tok) of
@@ -149,7 +160,7 @@ fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree =
                   |Symbol(Operator(oper)) => treeLit(TreeOper(oper))
                   |unknown => raise ErrorHandler.unexpectedSymbol("number or operator",tokToStrWithType(unknown), expr)
 
-       fun firstHiPredPiecePair(toks:TokenAtLine list) =
+       fun firstHiPredExprAndRest(toks:TokenAtLine list) =
               let val first = List.nth(toks,0)
                 val second = List.nth(toks,1)
                 val third = List.nth(toks,2)
@@ -164,25 +175,30 @@ fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree =
  in
    case toks of 
      [] => EmptyNode
-    |[x] => createSingleNode(x)
-    |(x::xs) => 
-              let val firstTok = getTok(x)
-                  val secondTok = getTok(hd(xs))
+    |[singleTok] => createSingleNode(singleTok)
+    |(firstTok::afterFirstTok) => 
+               let val secondTok = getTok(hd(afterFirstTok))
+                   val rest = tl(afterFirstTok)
                in
                  case secondTok of
                    Symbol(Operator(oper)) => 
                         (*Expressions of high predecence is calculated beforehand*)
                         if Util.member oper highPriOperators then 
-                          let val (num1,opp,num2, rest) = firstHiPredPiecePair(toks)
+                          let val (num1, opp, num2, rest) = firstHiPredExprAndRest(toks)
                               val hiPredEvaluated =
-                                evalExprTree(Node(createExprTree([num1],expr),TreeOper(oper),createExprTree([num2],expr)),expr)
+                                evalExprTree(Node(
+                                    createExprTree([num1],expr),
+                                    TreeOper(oper),
+                                    createExprTree([num2],expr)),expr)
                            in
+                             (*The result of the high predence expression is
+                             added back to the list of tokens to parse*)
                             createExprTree(mkTokAtLine(Litteral(Number(hiPredEvaluated)),0)::rest,expr)
                            end
                         else 
-                          Node(createExprTree([x], expr), TreeOper(oper),
-                          createExprTree(tl(xs), expr))
-                  |unknown => handleExpectedOperator(unknown)
+                          Node(createExprTree([firstTok], expr), TreeOper(oper),
+                          createExprTree(rest, expr))
+                  |other => handleExpectedOperator(other)
         end
     end
 
@@ -199,7 +215,7 @@ fun repeatStr(str:string, 0) = ""
    in
     case exprTree of
         Node(left,value,right) =>  
-          Util.format("Tree( [$], L( $ ), R( $  )", 
+          Util.format("Tree( Parent:$ L:$ R:$ )", 
             [getValue(value), exprTreeToStr(left),exprTreeToStr(right)])
        |EmptyNode => ""
        |treeLit(lit) => getValue(lit) 
@@ -355,3 +371,4 @@ val _ = testExpr("(-2)*(-6)","12.0")
 val _ = testExpr("(-2)*(-6)*(-12.45)","~149.4")
 val _ = testExpr("12/6/4","0.5")
 val _ = testExpr("1-2-3-4-5-6-7-8-9","~43.0")
+val _ = printTree("2*4+3")
