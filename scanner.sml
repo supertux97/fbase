@@ -23,7 +23,8 @@ datatype Token =
   | Keyword of string (*Ex: from,Token filter*)
   | Symbol of symbol (*Ex: #, {*)
 
-type TokenAtLine = Token * int
+type TokenAtLine = Token * int;
+
 val keywords = ["from","filter","using","and","or",
               "merge","insert","rows","into","remove","as",
               "where", "set","create","table","with",
@@ -118,64 +119,6 @@ fun tokToStrWithType(t:Token) =
               treeLit of TreeLitteral | 
               Node of ExprTree * TreeLitteral * ExprTree 
 
-
-fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree = 
-  let  fun firstHiPredPiecePair(toks:TokenAtLine list):(TokenAtLine list*TokenAtLine list) = 
-          let val first = List.nth(toks,0)
-              val second = List.nth(toks,1)
-              val third = List.nth(toks,2)
-              val rest = List.drop(toks,3)
-          in
-            ([first,second,third], rest)
-          end
-    in
-           case toks of 
-             [] => EmptyNode
-             | [x] => (
-                 case getTok(x) of
-                    Litteral(Number(n)) => treeLit(TreeNum(n))
-                  |Symbol(Operator(oper)) => treeLit(TreeOper(oper))
-                  |unknown => raise ErrorHandler.unexpectedSymbol("number or operator",tokToStrWithType(unknown), expr))
-            | (x::xs) => 
-               let val firstTok = getTok(x)
-                   val middleTok = getTok(hd(xs))
-               in
-                 case middleTok of
-                      Symbol(Operator(oper)) => 
-                        if Util.member oper highPriOperators then 
-                          let val (hiPrecToks, rest) = firstHiPredPiecePair(toks)
-                          in
-                            if null rest then 
-                              case hiPrecToks of 
-                                   (x::xs) => 
-                                     Node(
-                                            createExprTree([x],expr),
-                                            ( 
-                                            case getTok(hd(xs)) of  
-                                               Symbol(Operator(oper)) => TreeOper(oper)
-                                              |u => raise ErrorHandler.unexpectedSymbol(
-                                                          "operator",tokToStrWithType(u),expr)
-                                              ),
-                                             createExprTree(tl(xs),expr))
-                            else 
-                              let val restFirstOp = case getTok(hd(rest)) of
-                                                     Symbol(Operator(oper)) => oper
-                                                   | tok => raise ErrorHandler.unexpectedSymbol(
-                                                      "operator",tokToStrWithType(tok),expr)
-                              in 
-                              Node(createExprTree(hiPrecToks,expr),
-                                TreeOper(restFirstOp),
-                                createExprTree(tl(rest),expr))
-                              end
-                          end
-                        else 
-                          Node(createExprTree([x], expr), TreeOper(oper),
-                          createExprTree(tl(xs), expr))
-                    | unknown => raise ErrorHandler.noSuchSymbolExpr(
-                      tokToStrWithType(unknown), expr)
-              end
-    end
-
   fun evalExprTree(tree:ExprTree,source:string):real = 
     let fun solveBinExp(n1:real,oper:string,n2:real) = 
         case oper of 
@@ -194,6 +137,53 @@ fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree =
                       evalExprTree(right,source)) 
          |treeLit(TreeOper(oper)) => raise ErrorHandler.unexpectedSymbol(
                                      "number",oper, source)
+         |unknown => raise ErrorHandler.unexpectedSymbol("number","other",source)
+    end
+
+fun mkTokAtLine(tok:Token, line:int):TokenAtLine = (tok, line)
+
+fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree = 
+  let  fun createSingleNode(tok: TokenAtLine):ExprTree = 
+             case getTok(tok) of
+                   Litteral(Number(n)) => treeLit(TreeNum(n))
+                  |Symbol(Operator(oper)) => treeLit(TreeOper(oper))
+                  |unknown => raise ErrorHandler.unexpectedSymbol("number or operator",tokToStrWithType(unknown), expr)
+
+       fun firstHiPredPiecePair(toks:TokenAtLine list) =
+              let val first = List.nth(toks,0)
+                val second = List.nth(toks,1)
+                val third = List.nth(toks,2)
+                val rest = List.drop(toks,3)
+            in
+              (first,second,third,rest)
+            end
+
+       fun handleExpectedOperator(found:Token) = 
+         raise ErrorHandler.unexpectedSymbol("operrator",tokToStrWithType(found),expr)
+
+ in
+   case toks of 
+     [] => EmptyNode
+    |[x] => createSingleNode(x)
+    |(x::xs) => 
+              let val firstTok = getTok(x)
+                  val secondTok = getTok(hd(xs))
+               in
+                 case secondTok of
+                   Symbol(Operator(oper)) => 
+                        (*Expressions of high predecence is calculated beforehand*)
+                        if Util.member oper highPriOperators then 
+                          let val (num1,opp,num2, rest) = firstHiPredPiecePair(toks)
+                              val hiPredEvaluated =
+                                evalExprTree(Node(createExprTree([num1],expr),TreeOper(oper),createExprTree([num2],expr)),expr)
+                           in
+                            createExprTree(mkTokAtLine(Litteral(Number(hiPredEvaluated)),0)::rest,expr)
+                           end
+                        else 
+                          Node(createExprTree([x], expr), TreeOper(oper),
+                          createExprTree(tl(xs), expr))
+                  |unknown => handleExpectedOperator(unknown)
+        end
     end
 
 fun repeatStr(str:string, 0) = ""
@@ -359,9 +349,9 @@ val _ = testExpr("1.123+4.16+8.1+9","22.383")
 val _ = testExpr("1+2*3","7.0")
 val _ = testExpr("32/8/5","0.8")
 val _ = testExpr("1-2-3-4","~8.0")
+val _ = testExpr("1+2*3", "7.0")
 val _ = testExpr("(-2)/4/2","~0.25")
 val _ = testExpr("(-2)*(-6)","12.0")
 val _ = testExpr("(-2)*(-6)*(-12.45)","~149.4")
-val _ = testExpr("1/2/3/4","0.04166666666")
+val _ = testExpr("12/6/4","0.5")
 val _ = testExpr("1-2-3-4-5-6-7-8-9","~43.0")
-val _ = printTree("1/2/3/4")
