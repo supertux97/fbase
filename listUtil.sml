@@ -1,6 +1,7 @@
-structure ListUtil = 
-struct 
+use "operators.sml";
 fun main a = a
+structure ListUtil =
+struct 
 
 (*Checks if a element is included in a list
 adapted with variations from "ML for the working programmer"*)
@@ -18,6 +19,10 @@ fun takeWhile(l:'a list, pred:('a->bool)) =
       [] => [] 
      |(x::xs) => if pred(x) then x::takeWhile(xs,pred) else []
 
+(*Fills a new list with elements of the passed list unitil the predicate for
+the element is true*)
+fun takeWhileNot(l:'a list, pred:('a->bool)) = 
+  takeWhile(l,(fn e=>not(pred(e))))
 
 (*Creates a copy of the passed list. As long as the predicate is true, elements
  from the passed list is not included into the returned*)
@@ -26,6 +31,12 @@ fun dropWhile(l:'a list, pred:('a->bool)) =
        [] => []
      |(x::xs) => if pred(x) then dropWhile(xs, pred)
                  else l
+
+(*Creates a copy of the passed list. As long as the predicate is not true, elements
+ from the passed list is not included into the returned*)
+fun dropWhileNot(l:'a list, pred:('a->bool)) = 
+  dropWhile(l,(fn e=>not(pred(e))))
+
 (*Returns the list with element at index i removed. If is out of bounds, no
  element is removed*)
 fun removeElemAtIndex(l:'a list,i:int) =
@@ -38,10 +49,23 @@ let
     removeElemAtIndex(l,i,0)
   end
 
+  (*The identity function*)
+  fun I(e:'a) =  e
+
 (*Creates a string representation of the given list. toStr is used for
 converting the elemtns to a string and sep is used in between the elements*)
 fun listToStr ([], toStr:('a->string),sep:string):string = ""
+  | listToStr([x],toStr:('a->string),sep:string) = toStr x
   | listToStr(x::xs, toStr:('a->string),sep:string) = toStr x ^ sep ^ listToStr(xs,toStr,sep)
+
+(*Creates as string repsetentation of a given twodimentional list. toStr is used
+ for converting the elemtns to a string. sepElem is used between the elements
+  and sepBetweenLists is used between the sublists*)
+fun twoDimListToStr(twoDim:'a list list,toStr:('a->string), sepElem:string,sepBetweenLists:string) = 
+  let val listOfStrings =  List.map (fn l => listToStr(l,toStr, sepElem)) twoDim
+      val oneString = listToStr(listOfStrings, I, sepBetweenLists)
+  in oneString
+  end
 
 (*Creates a list filled with the numbers n,n-1,...,1.
  fillList(5) will therefore give a 5 element long list*)
@@ -65,6 +89,18 @@ fun sumTail(l) =
 	   |sumFrom(x::xs,summed) = sumFrom(xs,summed + x)
   in
 	  sumFrom(l, 0)
-end
+  end
+
+(*Splits a list into a list of lists with a predicate function. Every time the
+predicate is true, the elements gets added into a new list. The element for wich
+the predicate is true is not added to the sublist
+ Example: ["test1","test2","!","test3","!"] -> [ ["test1","test2"],["test3"] ]*)
+  fun splitListIntoSublists(l:'a list, pred:('a->bool)):'a list list = 
+       if List.length(l) > 0 then
+            takeWhileNot(l,pred):: 
+              let val restAfterFirstSublist = tl(dropWhileNot(l,pred)) 
+              in splitListIntoSublists(restAfterFirstSublist, pred)
+              end
+       else []
 end;
 

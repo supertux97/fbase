@@ -30,10 +30,6 @@ fun getToksOfQueryType(toks:TokenAtLine list, queryType:string) =
 (*Maps table-names to aliases. The function assumes the list of tokens to be
 only associated with the from query-type *)
 fun getTablesAndAliases(fromToks:TokenAtLine list):aliasToTablename list = 
- case fromToks of
-     (x::xs) => case getTok(fromToks) of 
-                     Identifier(id) => (id, getTablesAndAliases)
-  
 (*Divides the tokens into the various queries. A query can be empty*)
 fun splitToksIntoQueryParts(toks: TokenAtLine list) = 
     {from=getToksOfQueryType(toks, "from"), 

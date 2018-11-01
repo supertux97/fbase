@@ -43,7 +43,7 @@ fun dropWhileStr(str:string, pred:(char->bool)) =
                        else Char.toString(x) ^ xs
       |(_,_) => ""
 
-(*Example usage: printf("Name: $1 Age: $2", ["Name", $15]*)
+(*Example usage: format("Name: $1 Age: $2", ["Name", $15]*)
 fun format(str:string, vals:string list) =
   let
     val chars = String.explode(str)
@@ -60,7 +60,7 @@ fun format(str:string, vals:string list) =
                    if(vals = nil) then raise NotEnoughListElements("Missing list elements")
                    else hd vals ^ format(ListUtil.listToStr(r,Char.toString,""), tl vals)
                |(f,r) => Char.toString(f) ^ format(ListUtil.listToStr(r,Char.toString,""), vals)
-  end;
+  end
 
 fun fib 0 = 1
    |fib 1 = 1
