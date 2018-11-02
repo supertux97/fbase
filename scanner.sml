@@ -2,29 +2,10 @@ use "util.sml";
 use "listUtil.sml";
 use "utest.sml"; 
 use "ErrorHandler.sml";
+use "tokUtil.sml";
 
 structure Scanner = 
 struct
-datatype litteralType =
-  String of string
-  | Bool of bool
-  | Number of real
-
-datatype symbol =
-    Operator of string
-  | PredicateOperator of string
-  | SyntaxSymbol of string
-
-datatype Token =
-    Identifier of string(*Ex: tablename, columname*)
-  | Function of string (*Ex: noneof*)
-  | PipeFunction of string (*Ex: upper, lower*)
-  | Litteral of litteralType (*Ex: 123, "text"*)
-  | Keyword of string (*Ex: from,Token filter*)
-  | Symbol of symbol (*Ex: #, {*)
-
-type TokenAtLine = Token * int;
-
 val keywords = ["from","filter","using","and","or",
               "merge","insert","rows","into","remove","as",
               "where", "set","create","table","with",
@@ -87,33 +68,6 @@ fun getLineNo(tal:TokenAtLine) =
   case tal of(_,lineNo) => lineNo
 fun convToken(tok:Token, f:(Token -> 'a)) = f(tok)
 
-(*Gets the first tree tokens and then the rest*)
-fun getFirstTripple(toks:TokenAtLine list):(TokenAtLine*TokenAtLine*TokenAtLine*TokenAtLine list) =
-   ( List.nth(toks,0), List.nth(toks,1), List.nth(toks,2), ListUtil.dropN(toks, 2))  
-
-fun tokValAndKind(value:string, kind:string) = Util.format("$:$", [value, kind])
-fun tokVal(value:string, kind:string) = value
-
-(*Creates a string representation of a given token. The supplied function
-toStrFunc allows for various kinds of formatting*)
-fun tokToStr(t:Token,toStrFunc:(string*string->string)):string =
-     case t of
-     Identifier i => toStrFunc(i, "Id")
-    |Function f => toStrFunc(f, "Fun")
-    |PipeFunction pf => toStrFunc(pf, "PipeFun")
-    |Keyword k => toStrFunc(k,"Keyword")
-    |Litteral l =>
-      ( case l of
-         String s => toStrFunc(s, "String")
-        |Bool b => toStrFunc( if b then "true" else "false", "Bool")
-        |Number n => toStrFunc(Real.toString(n), "Num") )
-    |Symbol s =>
-          (case s of
-             Operator opp => toStrFunc(opp, "Op")
-            |PredicateOperator po => toStrFunc(po, "PredOp")
-            |SyntaxSymbol ss => toStrFunc(ss, "Syntax"))
-
-
   (*Node: Left Val Right*)
   datatype TreeLitteral = TreeNum of real | TreeOper of string
   datatype ExprTree = 
@@ -160,8 +114,8 @@ fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree =
              case getTok(tok) of
                    Litteral(Number(n)) => treeLit(TreeNum(n))
                   |Symbol(Operator(oper)) => treeLit(TreeOper(oper))
-                  |unknown => raise ErrorHandler.unexpectedSymbolExpr("number or operator",
-                   tokToStr(unknown, tokValAndKind), expr)
+                  |other=> raise ErrorHandler.unexpectedSymbolExpr("number or operator",
+                         TokUtil.tokToStr(other, TokUtil.tokValAndKind), expr)
 
        fun firstHiPredExprAndRest(toks:TokenAtLine list) =
               let val first = List.nth(toks,0)
@@ -174,7 +128,7 @@ fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree =
 
        fun handleExpectedOperator(found:Token) = 
          raise
-         ErrorHandler.unexpectedSymbolExpr("operrator",tokToStr(found,tokValAndKind),expr)
+         ErrorHandler.unexpectedSymbolExpr("operrator",TokUtil.tokToStr(found,TokUtil.tokValAndKind),expr)
 
  in
    case toks of 
@@ -352,7 +306,7 @@ fun tokListToStr(tl:TokenAtLine list):string =
     |(x::xs) =>
       case x of
         (tok, lineNo) =>
-          Util.format("[$] $", [Util.$lineNo, tokToStr(tok,tokValAndKind)]) ^ "\n" ^ tokListToStr(xs)
+          Util.format("[$] $", [Util.$lineNo, TokUtil.tokToStr(tok,TokUtil.tokValAndKind)]) ^ "\n" ^ tokListToStr(xs)
 
 fun evalFromTxt(txt:string):string =
   Real.toString(evalExprTree(createExprTree(trimAndScan(txt),txt),txt))

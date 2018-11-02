@@ -21,6 +21,8 @@ signature ERROR_HANDLER =
     val unexpectedSymbol: string * string * int-> exn
 
     val emptyQuery: unit -> exn
-
+ 
+    (*Expected*Found*lineNo*) 
+    val malformedQuery:string*string*int -> exn
     (*val aritmetric: string * int *)
  end;

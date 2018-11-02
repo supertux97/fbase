@@ -95,10 +95,12 @@ fun sumTail(l) =
 predicate is true, the elements gets added into a new list. The element for wich
 the predicate is true is not added to the sublist
  Example: ["test1","test2","!","test3","!"] -> [ ["test1","test2"],["test3"] ]*)
-  fun splitListIntoSublists(l:'a list, pred:('a->bool)):'a list list = 
+fun splitListIntoSublists(l:'a list, pred:('a->bool)):'a list list = 
        if List.length(l) > 0 then
             takeWhileNot(l,pred):: 
-              let val restAfterFirstSublist = tl(dropWhileNot(l,pred)) 
+              let val restAfterFirstSublist = 
+                  let val restIncludingDelim = dropWhileNot(l,pred)
+                  in if List.length(restIncludingDelim) <= 1 then [] else tl(restIncludingDelim) end
               in splitListIntoSublists(restAfterFirstSublist, pred)
               end
        else []

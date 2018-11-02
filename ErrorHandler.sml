@@ -12,7 +12,7 @@ structure ErrorHandler:ERROR_HANDLER =
     exception NoSuchSymbolException of string
     exception AritmetricException of string
     exception EmptyQueryException of string
-
+    exception MalformedQueryException of string
     fun warning(degree:severity, explanation:string, lineNo:int):unit = 
       let val typeWarning = 
             case degree of 
@@ -41,10 +41,14 @@ structure ErrorHandler:ERROR_HANDLER =
       Util.format("ERROR:(unexpectedSymbolExpr): Excptected $ but got $ in \"$\"",
       [expected, found, context]))
 
-    fun unexpectedSymbol(expected:string, found:string, lineNo:int):exn= 
+    fun unexpectedSymbol(expected:string, found:string, lineNo:int):exn = 
      raise UnexpectedSymbolException(
       Util.format("ERROR:(unexpectedSymbolExpr): Excptected $ but got $ at line no. $",
       [expected, found, Util.$(lineNo)]))
+
+    fun malformedQuery(expected:string, found:string, lineNo:int):exn = 
+      raise MalformedQueryException(Util.format("ERROR: (MalformedQueryException) expected $ but got$ at line no. $",
+      [expected,found,Util.$(lineNo)] ))
 
     fun emptyQuery() = 
       raise EmptyQueryException("ERROR: (EmptyQuery): The query cannot be empty")
