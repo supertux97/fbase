@@ -1,5 +1,6 @@
 fun main a = a;
 structure Tok = 
+
  struct
 
 datatype litteralType =

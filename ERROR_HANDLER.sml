@@ -24,5 +24,7 @@ signature ERROR_HANDLER =
  
     (*Expected*Found*lineNo*) 
     val malformedQuery:string*string*int -> exn
+    (*Expected*Found*lineNo*)
+    val malformedMetadata:string*string -> exn
     (*val aritmetric: string * int *)
  end;

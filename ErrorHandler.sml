@@ -1,4 +1,4 @@
-use "util.sml";
+use "util/util.sml";
 use "operators.sml";
 use "ERROR_HANDLER.sml";
 
@@ -13,6 +13,7 @@ structure ErrorHandler:ERROR_HANDLER =
     exception AritmetricException of string
     exception EmptyQueryException of string
     exception MalformedQueryException of string
+    exception MalformedMetadataException of string
     fun warning(degree:severity, explanation:string, lineNo:int):unit = 
       let val typeWarning = 
             case degree of 
@@ -49,6 +50,10 @@ structure ErrorHandler:ERROR_HANDLER =
     fun malformedQuery(expected:string, found:string, lineNo:int):exn = 
       raise MalformedQueryException(Util.format("ERROR: (MalformedQueryException) expected $ but got$ at line no. $",
       [expected,found,Util.$(lineNo)] ))
+
+    fun malformedMetadata(expected:string, found:string):exn = 
+      raise MalformedQueryException(Util.format("ERROR: (MalformedQueryException) expected $ but got$ at line no. $",
+      [expected,found] ))
 
     fun emptyQuery() = 
       raise EmptyQueryException("ERROR: (EmptyQuery): The query cannot be empty")

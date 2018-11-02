@@ -1,8 +1,8 @@
-use "util.sml";
-use "listUtil.sml";
+use "util/util.sml";
+use "util/listUtil.sml";
 use "utest.sml"; 
 use "ErrorHandler.sml";
-use "tokUtil.sml";
+use "util/tokUtil.sml";
 
 structure Scanner = 
 struct
