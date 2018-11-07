@@ -4,6 +4,7 @@ use "map/map.sig";
 use "util/parseUtil.sml";
 use "ErrorHandler.sml";
 use "util/listUtil.sml";
+use "tok.sml";
 use "scanner.sml";
 
 fun main a = a
@@ -11,13 +12,11 @@ fun main a = a
 structure MetadataParser = 
 struct 
 datatype Type = STRING | NUMBER | BOOL 
-datatype litteral = num of real| str of string | boolean of bool
 
 (*For each field*)
 datatype fieldInfo = fieldInfoNoDefault of int * Type |
-                    fieldInfoDefault of int * Type * litteral
+                    fieldInfoDefault of int * Type * Tok.litteral
 type  singleField = string * fieldInfo
-
 val fieldDelim = #";"
 val idString = #"s"
 val idNumber = #"n"
@@ -40,22 +39,22 @@ fun getTypeByIdentifier(source:string): Type =
 
 (*Gets the first litteral from a string. The string is expected
  to be correctly formated*)
-fun getLitteral(source:string):litteral = 
+fun getLitteral(source:string):Tok.litteral= 
   let val firstChar = Util.hdString(source)
   in
     if ParseUtil.isStartOfString(firstChar) then 
-      str(Util.takeWhileStr(Util.tlString(source),(fn c=>c <> Scanner.stringSep)) )
+      Tok.String(Util.takeWhileStr(Util.tlString(source),(fn c=>c <> Scanner.stringSep)) )
 
     else if ParseUtil.isStartOfDigit(firstChar) then
       let val (firstNum,rest) = ParseUtil.getFirstNumberFromString(source)
-      in num(firstNum)
+      in Tok.Number(firstNum)
       end
 
     else  
       let val (id,rest) = Substring.splitl (fn c=>c <> Scanner.stringSep) (Util.strToSs(source))
       in case Util.ssToStr(id) of 
-           "true" => boolean(true)
-           |"false" => boolean(false)
+           "true" => Tok.Bool(true)
+           |"false" => Tok.Bool(false)
            | other => raise ErrorHandler.unexpectedSymbol("number, string or boolean", other ^ " in metadatafile", 1)
       end
   end
@@ -80,11 +79,11 @@ fun fieldInfoToStr(name:string, fi:fieldInfo) =
                STRING => "string"
               |NUMBER => "number"
               |BOOL => "bool"
-        fun getDefVal(d:litteral) = 
+        fun getDefVal(d:Tok.litteral) = 
           case d of
-              num(n) => Real.toString(n)
-             |str(s) => s
-             |boolean(b) => if b then "true" else "false"
+              Tok.Number(n) => Real.toString(n)
+             |Tok.String(s) => s
+             |Tok.Bool(b) => if b then "true" else "false"
     in
     case fi of 
          fieldInfoDefault(idx, t, defVal) => Util.format("Name:$ Idx:$ type_:$ DefVal: $", 
