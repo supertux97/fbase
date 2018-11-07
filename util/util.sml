@@ -1,4 +1,4 @@
-use "listUtil.sml";
+use "util/listUtil.sml";
 fun main a = a
 structure Util = 
 struct

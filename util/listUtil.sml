@@ -91,6 +91,17 @@ fun sumTail(l) =
 	  sumFrom(l, 0)
   end
 
+(*A variant of the map function where the callback is a tuple constisting of the
+ element and the index*)
+fun mapWithIndex mapFn l = 
+  let fun doMap(mapFn,l,idx) = 
+      case l of 
+        (x::xs) => mapFn(x,idx) :: doMap(mapFn,xs,idx + 1)
+       |[] => []
+  in 
+    doMap(mapFn,l,0)
+  end
+
 (*Splits a list into a list of lists with a predicate function. Every time the
 predicate is true, the elements gets added into a new list. The element for wich
 the predicate is true is not added to the sublist

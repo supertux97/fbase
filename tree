@@ -1,0 +1,1 @@
+tree(val 6, tree(val 2 left(tree val 2, left :null, right:null), tree(val 4, left:null,right,null)),tree)

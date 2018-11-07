@@ -1,7 +1,7 @@
 use "scanner.sml";
 use "ErrorHandler.sml";
 use "operators.sml";
-use "listUtil.sml";
+use "util/listUtil.sml";
 open TokUtil;
 open Scanner;
 
@@ -30,7 +30,7 @@ fun getToksOfQueryType(toks:TokenAtLine list, queryType:string) =
 (*Maps table-names to aliases. If no alias is given, the tablename is mapped to
 itself. The function assumes the list of tokens to be
 only associated with the from query-type *)
-fun getTablesAndAliases(fromToks:TokenAtLine list) = 
+fun getTablesAndAliases(fromToks:TokenAtLine list):aliasToTablename list = 
   let fun singleQueryToMapping(q:TokenAtLine list):aliasToTablename = 
         case q of 
           [x] => (case getTok(x) of 
@@ -54,10 +54,8 @@ fun splitToksIntoQueryParts(toks: TokenAtLine list) =
      output=getToksOfQueryType(toks, "output")}
 
   val q = "from Employee as E, Students as S, Salary merge E and S using id filter id = 32"  
-  val toks = trimAndScan(q)
-  val parts = splitToksIntoQueryParts(toks)
+  val parts = q |> trimAndScan |> splitToksIntoQueryParts
   val from = #from parts
   val tal = getTablesAndAliases(from)
   val _ = print(ListUtil.listToStr(tal,(fn tal=>Util.format("$->$",[#1 tal, #2 tal])), "\n"))
 end;
-

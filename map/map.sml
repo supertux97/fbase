@@ -1,2 +1,3 @@
 use "map/mapTree.sml";
-structure Map = MapTreeOfType(orderedInt)
+structure IntMap = MapTreeOfType(orderedInt)
+structure StrMap = MapTreeOfType(orderedString)

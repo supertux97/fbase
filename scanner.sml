@@ -1,4 +1,5 @@
 use "util/util.sml";
+use "util/parseUtil.sml";
 use "util/listUtil.sml";
 use "utest.sml"; 
 use "ErrorHandler.sml";
@@ -12,17 +13,16 @@ val keywords = ["from","filter","using","and","or",
               "colums","of","default","string","boolean","number",
               "output"]
 val functions = ["upper","lower","oneof","noneof"]
-val stringSep = #"'"
 val pipeFunctions = ["upper","lower"]
 
 val operatorsLenOne = ["+","-","*","/"]
 val operators = operatorsLenOne
-
+val stringSep = #"'"
 val predicateOperatorsLenOne = ["=","<",">"]
 val predicateOperatorsLenTwo = ["<=",">=", "!="]
 val predicateOperators = predicateOperatorsLenOne @ predicateOperatorsLenTwo
 
-val syntaxSymbolsLenOne = [".",",",":","{","}","(", ")","*","|", Char.toString stringSep] 
+val syntaxSymbolsLenOne = [".",",",":","{","}","(", ")","*","|",Char.toString(stringSep)] 
 val syntaxSymbolsLenTwo = ["->"]
 val syntaxSymbols = syntaxSymbolsLenOne @ syntaxSymbolsLenTwo 
 
@@ -54,12 +54,27 @@ fun rmWsTailRec(str:string):string =
   case lines of
     (x::xs) =>
     let
-      val substr = Substring.full(x)
+      val substr = Util.strToSs(x)
       val (noComment, comment) = Substring.splitl (fn c => c <> #"#") substr
     in
-      Substring.string noComment :: rmComments(xs)
+      Util.ssToStr(noComment) :: rmComments(xs)
     end
-    |(nil) => lines
+    |[] => []
+
+ fun rmCommentsTailrec(lines: string list):string list =
+   let fun rmTailRec(lines:string list, result:string list) = 
+    case lines of
+      (x::xs) =>
+     let
+        val substr = Util.strToSs(x)
+        val (noComment, comment) = Substring.splitl (fn c => c <> #"#") substr
+      in
+        rmTailRec(xs, Util.ssToStr(noComment) :: result)
+      end
+      |[] => rev(result)
+    in 
+      rmTailRec(lines,[])
+   end
 
 fun getTok(tal: TokenAtLine) = 
  case tal of (t,_) => t 
@@ -103,7 +118,7 @@ fun mkTokAtLine(tok:Token, line:int):TokenAtLine = (tok, line)
 
  The function creates the tree by creating a parent node for the operator, a left child for the first value
  and a right child for the rest of the expression. Eg: 1+2+3 will result in the
- tree: Parent:+ Left:1 Right:(Parent:+ Left:2 Right:3)
+ tree: Val:+ Left:1 Right:(Val:+ Left:2 Right:3)
  The function printTree can be used to get a textual representation of a tree
  in this style.
 
@@ -173,11 +188,12 @@ fun repeatStr(str:string, 0) = ""
    in
     case exprTree of
         Node(left,value,right) =>  
-          Util.format("Tree( Parent:$ L:$ R:$ )", 
+          Util.format("Tree( Val:$ L:$ R:$ )", 
             [getValue(value), exprTreeToStr(left),exprTreeToStr(right)])
        |EmptyNode => ""
        |treeLit(lit) => getValue(lit) 
    end
+
 
   (*Get the first operator from a string and the rest of the string
    Unwanted chars are removed unitil a valid symbol occurs.
@@ -216,6 +232,7 @@ fun getTokenByKind(t:string):Token =
     if idx < size(str) then SOME(String.sub(str,idx))
     else NONE
 
+
   fun scan(str:string, lineNo:int):TokenAtLine list =
     let
       val firstChar = String.sub(str, 0) 
@@ -223,55 +240,41 @@ fun getTokenByKind(t:string):Token =
       val thirdCharOpt = strSubOption(str, 2)  
       val subString = Substring.full(str)
       
-      fun startOfIdentifier(c:char) = Char.isAlpha(firstChar) 
-      fun whitespace(c:char) = c = #" "
-      fun startOfString(c:char) = c = stringSep
-      fun newline(c:char) = c = #"\n"
-      fun startofSymbol(c:char) = ListUtil.member (Char.toString(firstChar)) validSymbols
-      fun startOfDigit(c:char) = Char.isDigit(firstChar)
-      fun startOfSubtraction(c1:char,c2Opt:char option) = 
-        case c2Opt of 
-            SOME(c2) => c1 = #"-" andalso Char.isDigit(c2)
-           |NONE => false 
-      fun startOfnegativeDigit(first:char, secondOpt:char option, thirdOpt:char option ) = 
-        case (secondOpt, thirdOpt) of
-            (SOME(c2), SOME(c3)) =>  first= #"(" andalso c2 = #"-" andalso Char.isDigit(c3)
-           | (_, _) => false
     in 
-      if startOfIdentifier(firstChar) then
-        let val (alfaToken, rest) = Substring.splitl Char.isAlpha subString
-            val token = getTokenByKind(Util.ssToStr(alfaToken))
-        in (token, lineNo) :: scan(Util.ssToStr(rest), lineNo)
+      if ParseUtil.isStartOfIdentifier(firstChar) then
+        let val (firstId, rest) = ParseUtil.getFirstIdentifier(str)
+            val token = getTokenByKind(firstId)
+        in (token, lineNo) :: scan(rest, lineNo)
         end
 
-      else if whitespace(firstChar) then scan(Util.rmHeadOfString(str), lineNo)
+      else if ParseUtil.isStartOfwhitespace(firstChar) then scan(Util.rmHeadOfString(str), lineNo)
 
-      else if startOfString(firstChar) then
+      else if ParseUtil.isStartOfString(firstChar) then
         let val ssNoFirstSep = Util.strToSs(Util.rmHeadOfString(str))
             val (strContent, rest) = Substring.splitl (fn c => c <> stringSep) ssNoFirstSep
         in  (Litteral(String(Util.ssToStr strContent)), lineNo) ::
         scan(Util.rmHeadOfString(Util.ssToStr(rest)),lineNo)
         end
-      else if startOfSubtraction(firstChar, secondCharOpt) then 
-        let val (number,rest) = Util.getFirstNumberFromString(Util.rmHeadOfString(str))
+      else if ParseUtil.isStartOfSubtraction(firstChar, secondCharOpt) then 
+        let val (number,rest) = ParseUtil.getFirstNumberFromString(Util.rmHeadOfString(str))
         in  (getTokenByKind("+"),lineNo) ::
-             (Litteral(Number(#1(Util.getFirstNumberFromString("-" ^
+             (Litteral(Number(#1(ParseUtil.getFirstNumberFromString("-" ^
              Real.toString(number))))),lineNo):: scan(rest,lineNo)
         end
-      else if startOfDigit(firstChar) then
-        let val (number, rest) = Util.getFirstNumberFromString(str)
+      else if ParseUtil.isStartOfDigit(firstChar) then
+        let val (number, rest) = ParseUtil.getFirstNumberFromString(str)
         in ( Litteral(Number(number)), lineNo) :: scan(rest, lineNo)
         end
 
-      else if startOfnegativeDigit(firstChar,secondCharOpt ,thirdCharOpt) then 
+      else if ParseUtil.isStartOfnegativeDigit(firstChar,secondCharOpt ,thirdCharOpt) then 
         let val parenRemoved = Util.rmFirstCharMatchOfString(#")", Util.rmHeadOfString(str))
-            val (number, rest) = Util.getFirstNumberFromString(parenRemoved)
+            val (number, rest) = ParseUtil.getFirstNumberFromString(parenRemoved)
         in ( Litteral(Number(number)), lineNo) :: scan(rest, lineNo)
         end
 
-      else if newline(firstChar) then scan(Util.rmHeadOfString(str), lineNo +1)
+      else if ParseUtil.isNewline(firstChar) then scan(Util.rmHeadOfString(str), lineNo +1)
 
-      else if startofSymbol(firstChar) then 
+      else if ParseUtil.isStartofSymbol(firstChar,validSymbols) then 
           let val (symbol, rest) = getOperatorFromString(str, oneLenOperators, twoLenOperators)
           in (getTokenByKind(symbol),lineNo) :: scan(rest, lineNo)
           end
@@ -314,6 +317,7 @@ fun evalFromTxt(txt:string):string =
 fun printTree(expr:string) = 
   print(exprTreeToStr(createExprTree(trimAndScan(expr),expr)))
 
+
 fun testExpr(expr:string, ans:string) = test(expr, ans, evalFromTxt(expr),Util.I) 
 fun main a = 
   let 
@@ -330,7 +334,6 @@ fun main a =
   val _ = testExpr("(-2)*(-6)*(-12.45)","~149.4")
   val _ = testExpr("12/6/4","0.5")
   val _ = testExpr("1-2-3-4-5-6-7-8-9","~43.0")
-  val _ = printTree("2*4+3")
 
   in 
     a

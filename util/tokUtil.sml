@@ -1,5 +1,5 @@
-use "listUtil.sml";
-use "util.sml";
+use "util/listUtil.sml";
+use "util/util.sml";
 use "tok.sml";
 open Tok
 

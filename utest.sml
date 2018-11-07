@@ -1,4 +1,4 @@
-use "util.sml";
+use "util/util.sml";
 fun main a = a
 
 (*A tiny function for performing unit-testing.*)

@@ -13,6 +13,7 @@ struct
   type keyType = ordered.t
 
   datatype 'a MapTree = 
+    (*Key*value*left*right*)
     Node of keyType * 'a * 'a MapTree * 'a MapTree |
     EmptyNode
 
