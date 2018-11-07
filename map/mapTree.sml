@@ -12,19 +12,18 @@ functor MapTreeOfType (ordered:ORDERED_TYPE):MAP =
 struct 
   type keyType = ordered.t
 
-  datatype 'a MapTree = 
+  datatype 'a Map = 
     (*Key*value*left*right*)
-    Node of keyType * 'a * 'a MapTree * 'a MapTree |
+    Node of keyType * 'a * 'a Map * 'a Map |
     EmptyNode
 
-  type 'a MapTree = 'a MapTree
-
+  type 'a Map = 'a Map
   (*Creates a empty map. The map does not yet have a value-type associated. This is set upon the first insert*)
   fun empty() = EmptyNode
 
   (*Inserts a value into the given map. If the key already exists, no value is
   inserted*)
-  fun insert(mt:'a MapTree, key:keyType,value: 'a) = 
+  fun insert(mt:'a Map, key:keyType,value: 'a) = 
     case mt of 
       EmptyNode => Node(key,value,EmptyNode, EmptyNode) 
      |Node(k,v,l,r) => case ordered.compare(k,key) of
@@ -33,7 +32,7 @@ struct
                         |GREATER => Node(k,v,l,insert(r,key,value))
   (*Retrieves the value associated with the given key. The result is wrapped in
    an option*)
-  fun get(mt: 'a MapTree, key:keyType) = 
+  fun get(mt: 'a Map, key:keyType) = 
     case mt of 
       EmptyNode => NONE 
      |Node(k,v,l,r) => case ordered.compare(k,key) of 

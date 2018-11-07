@@ -1,9 +1,10 @@
 use "util/util.sml";
 use "map/map.sml";
-use "map/map.sig";
 use "util/parseUtil.sml";
 use "ErrorHandler.sml";
 use "util/listUtil.sml";
+use "map/map.sml";
+use "map/map.sig";
 use "scanner.sml";
 
 fun main a = a
@@ -110,10 +111,10 @@ fun fieldInfoToStr(name:string, fi:fieldInfo) =
       mapInner(StrMap.empty(), fields,0)
     end
 
-(*Parses position and type information from a metadata source. Type information
+(*Parses position and type_ information from a metadata source. Type information
 includes type of the field and possibly a default value
  A map of the following format is returned: Map{fieldName:singleField, fieldName2:singleField,...} *)
-fun getFieldInfo(source:string): fieldInfo StrMap.Map = 
+fun getFieldInfo(source:string) = 
   let val fieldMap = StrMap.empty() 
       val fields = Util.splitStr(source,fieldDelim) 
       val mapped = mapFieldInfo(fields) 

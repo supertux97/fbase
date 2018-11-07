@@ -1,8 +1,8 @@
 signature MAP = 
 sig
-  type 'a MapTree
+  type 'a Map 
   type keyType
-  val insert: ('a MapTree*keyType*'a)-> 'a MapTree
-  val get: ('a MapTree*keyType) -> 'a option
-  val empty:(unit) -> 'a MapTree
+  val insert: ('a Map*keyType*'a)-> 'a Map 
+  val get: ('a Map*keyType) -> 'a option
+  val empty:(unit) -> 'a Map
 end;
