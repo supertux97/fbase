@@ -5,6 +5,7 @@ open MetadataParser
 structure DataParser = 
 struct
 val fieldDelim = #";"
+val stringSep = #"'"
 fun main a = a
 (*Tries to get the first litteral from a string source*)
 fun getLitteralFromType(
@@ -15,23 +16,29 @@ fun getLitteralFromType(
         raise ErrorHandler.typeErrorStoredData(
                 expected, MetadataParser.typeToStr(found),lineNo,filename)
 
-      val firstChar = Util.hdString(source)
+      val firstCharOpt = Util.hdStringOpt(source)
   in
-      if size(source) = 0 then NONE
-      else 
-        case type_ of
-         STRING => if ParseUtil.isStartOfString(firstChar) then
-                    SOME(Tok.String(ParseUtil.getFirstStringAsLitteral(source, fieldDelim)))
-                    else 
-                      raiseWrongDataExn("string", type_)
-        |NUMBER => if ParseUtil.isStartOfDigit(firstChar) then
-                      SOME(Tok.Number(ParseUtil.getFirstNumberFromStringAsLitteral(source)))
-                   else
-                     raiseWrongDataExn("integer", type_)
-        |BOOL  => if ParseUtil.isStrBoolean(source) then
-                      SOME(Tok.Bool(ParseUtil.strToBool(source)))
-                  else 
-                    raiseWrongDataExn("boolean", type_)
+      case firstCharOpt of
+           SOME(firstChar) => 
+              (case type_ of
+               STRING => if ParseUtil.isStartOfString(firstChar) then
+                          let val firstStr = ParseUtil.strFromBeginningOfStr(source,stringSep)
+                              val strPadded = ParseUtil.padStartAndEndStr(firstStr,stringSep)
+                              val tokStr = Tok.String(strPadded)
+                          in
+                            SOME(tokStr)
+                          end
+                         else 
+                            raiseWrongDataExn("string", type_)
+              |NUMBER => if ParseUtil.isStartOfDigit(firstChar) then
+                            SOME(Tok.Number(ParseUtil.getFirstNumberFromStringAsLitteral(source)))
+                         else
+                           raiseWrongDataExn("integer", type_)
+              |BOOL  => if ParseUtil.isStrBoolean(source) then
+                            SOME(Tok.Bool(ParseUtil.strToBool(source)))
+                        else 
+                          raiseWrongDataExn("boolean", type_) )
+          |NONE => NONE 
   end
 fun parseSingleFieldIntoMap(
       field:string, metadata:MetadataParser.fieldInfo, map:Tok.litteral StrMap.Map, lineNo:int,
@@ -59,11 +66,10 @@ fun mapFields(
   case metadata of 
     (m::ms) => 
       (case fields of
-        (f::fs) => (print(Util.format("F: $ M:$",
-         [f,MetadataParser.fieldInfoToStr(m,0)]) ^ "\n");
-          mapFields(fs,ms,parseSingleFieldIntoMap(
-                                    f,m,map,lineNo,filename),
-                              lineNo, filename))
+        (f::fs) => mapFields(
+                      fs,ms,
+                      parseSingleFieldIntoMap(f, m, map, lineNo, filename),
+                      lineNo, filename)
         |[] => map )
     |[] => map
 
@@ -88,9 +94,18 @@ fun parse(
   in rowsParsed
   end
 
-val metadataParsed = MetadataParser.parseFieldInfo("name{s,'jon doe'};salary{n};adress{s};isPartTime{b}")
+fun find(data: (Tok.litteral StrMap.Map) list, index:int, fieldName:string):string = 
+  let val dataAtIndex = List.nth(data, index)
+  in
+    case  StrMap.get(dataAtIndex, fieldName) of 
+      SOME(s) => TokUtil.litteralToStr(s)
+     |NONE => "field not found"
 
-val data = "'Per Olsen';300000;'Moss';false\n'Anne Olsen';400000;'Oslo';true\n'Peder Olsen';500000;'Moss';false\n'Hanne Stormo';350000;'Halden';true\n'Petter Sansemo';200000;'Sarpsborg';false\n'Arne Li';150000;'Moss';false\n"
+  end 
+val metadataParsed = MetadataParser.parseFieldInfo(Util.fileToStr("employees.md"))
+val data = Util.fileToStr("employees.dat")  
 val lines = Util.splitStr(data, #"\n")
 val dataParsed = parse(rev(metadataParsed), lines, "employees.dat")
+
+val _ = print(find(dataParsed,0,"isPartTime"))
 end;

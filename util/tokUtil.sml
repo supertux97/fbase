@@ -39,5 +39,11 @@ fun tokToStr(t:Tok.Token,toStrFunc:(string*string->string)):string =
             Tok.Operator opp => toStrFunc(opp, "Op")
             |Tok.PredicateOperator po => toStrFunc(po, "PredOp")
             |Tok.SyntaxSymbol ss => toStrFunc(ss, "Syntax"))
- 
+
+fun litteralToStr(lit:Tok.litteral) =
+  case lit of
+      Tok.Number(n) => Real.toString(n)
+     |Tok.String(s) => s
+     |Tok.Bool(b) => if b then "true" else "false"
+
 end;

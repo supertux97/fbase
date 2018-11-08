@@ -54,7 +54,7 @@ fun getLitteral(source:string):Tok.litteral=
   let val firstChar = Util.hdString(source)
   in
     if ParseUtil.isStartOfString(firstChar) then 
-        Tok.String(ParseUtil.getFirstStringAsLitteral(source, Scanner.stringSep))
+        Tok.String(ParseUtil.strFromBeginningOfStr(source, Scanner.stringSep))
     else if ParseUtil.isStartOfDigit(firstChar) then
       let val (firstNum,rest) = ParseUtil.getFirstNumberFromString(source)
       in Tok.Number(firstNum)
@@ -90,18 +90,11 @@ fun typeToStr(t:Type) =
           |BOOL => "bool"
 
 fun fieldInfoToStr(fi:fieldInfo,idx:int) = 
-  let fun getDefVal(d:Tok.litteral) = 
-          case d of
-              Tok.Number(n) => Real.toString(n)
-             |Tok.String(s) => s
-             |Tok.Bool(b) => if b then "true" else "false"
-    in
     case fi of 
          fieldInfoDefault(name, t, defVal) => Util.format("Name:$ Idx:$ type_:$ DefVal: $", 
-             [name, Util.$(idx), typeToStr(t),getDefVal(defVal)])
+             [name, Util.$(idx), typeToStr(t),TokUtil.litteralToStr(defVal)])
         |fieldInfoNoDefault(name, t) => Util.format("Name: $ Idx:$ type_:$ ", 
              [name, Util.$(idx), typeToStr(t)])
-  end
 
   (*Extracts information from a string of metadata information into a list of
    tupples consisting of the fieldname and the associated information*)

@@ -42,8 +42,13 @@ fun getFirstNumberFromStringAsLitteral(source:string):real =
   let val (num, rest) = getFirstNumberFromString(source)
   in num
   end
-fun getFirstStringAsLitteral(source:string,stringSep:char):string =  
+
+(*Gets the string at the beginning of source, up to but not including stringSep*)
+fun strFromBeginningOfStr(source:string,stringSep:char):string =  
      Util.takeWhileStr(Util.tlString(source),(fn c=>c <> stringSep))
+
+fun padStartAndEndStr(str:string,toPad:char) = 
+  Util.format("$$$",[Char.toString(toPad),str,Char.toString(toPad)])
 
 (*Excpects the string to be correctly formatted*)
 fun strToBool(str:string) = if str = "true" then true else false
