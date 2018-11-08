@@ -2,6 +2,7 @@ use "util/util.sml";
 use "ordered.sig";
 use "map/map.sig";
 use "ordered.sml";
+use "tok.sml";
 fun main a = a
 
 (*An fully functional inplementation of a map(aka associative array or dictonary

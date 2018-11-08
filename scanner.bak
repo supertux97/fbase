@@ -4,13 +4,17 @@ use "util/listUtil.sml";
 use "utest.sml"; 
 use "ErrorHandler.sml";
 use "util/tokUtil.sml";
-open Tok
+
 structure Scanner = 
 struct
+(*A few type abbreviations to get neater code*)
+type TokenAtLine = Tok.TokenAtLine
+type Token = Tok.Token
+
 val keywords = ["from","filter","using","and","or",
               "merge","insert","rows","into","remove","as",
               "where", "set","create","table","with",
-              "colums","of","default","string","boolean","number",
+              "colums","of","default","string","boolean","Tok.Number",
               "output"]
 val functions = ["upper","lower","oneof","noneof"]
 val pipeFunctions = ["upper","lower"]
@@ -81,14 +85,15 @@ fun getTok(tal: TokenAtLine) =
 
 fun getLineNo(tal:TokenAtLine) =
   case tal of(_,lineNo) => lineNo
-fun convToken(tok:Token, f:(Token -> 'a)) = f(tok)
 
-  (*Node: Left Val Right*)
-  datatype TreeLitteral = TreeNum of real | TreeOper of string
-  datatype ExprTree = 
-              EmptyNode |
-              treeLit of TreeLitteral | 
-              Node of ExprTree * TreeLitteral * ExprTree 
+fun valOfTok(t:TokenAtLine) = TokUtil.tokToStr(getTok(t), TokUtil.tokVal)
+
+(*Node: Left Val Right*)
+datatype TreeLitteral = TreeNum of real | TreeOper of string
+datatype ExprTree = 
+            EmptyNode |
+            treeLit of TreeLitteral | 
+            Node of ExprTree * TreeLitteral * ExprTree 
 
   fun evalExprTree(tree:ExprTree,source:string):real = 
     let fun solveBinExp(n1:real,oper:string,n2:real) = 
@@ -107,12 +112,9 @@ fun convToken(tok:Token, f:(Token -> 'a)) = f(tok)
                       solveBinExp(evalExprTree(left,source), oper,
                       evalExprTree(right,source)) 
          |treeLit(TreeOper(oper)) => raise ErrorHandler.unexpectedSymbolExpr(
-                                     "number",oper, source)
-         |unknown => raise ErrorHandler.unexpectedSymbolExpr("number","other",source)
+                                     "Tok.Number",oper, source)
+         |unknown => raise ErrorHandler.unexpectedSymbolExpr("Tok.Number","other",source)
     end
-
-fun mkTokAtLine(tok:Token, line:int):TokenAtLine = (tok, line)
-
 
 (*Creates an expression tree for a list of tokens. 
 
@@ -124,15 +126,15 @@ fun mkTokAtLine(tok:Token, line:int):TokenAtLine = (tok, line)
 
  High predenecence operations (division and multiplication) is evaluated before beeing inserted into the
  tree. Eg: 2*4+3 will result in the tree: Parent:+ Left:8 Right:3*)
-fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree = 
-  let  fun createSingleNode(tok: TokenAtLine):ExprTree = 
-             case getTok(tok) of
-                   Litteral(Number(n)) => treeLit(TreeNum(n))
-                  |Symbol(Operator(oper)) => treeLit(TreeOper(oper))
-                  |other=> raise ErrorHandler.unexpectedSymbolExpr("number or operator",
+fun createExprTree(toks:TokenAtLine list, expr:string):ExprTree = 
+  let  fun createSingleNode(tok: Tok.TokenAtLine):ExprTree = 
+             case TokUtil.getTok(tok) of
+                   Tok.Litteral(Tok.Number(n)) => treeLit(TreeNum(n))
+                  |Tok.Symbol(Tok.Operator(oper)) => treeLit(TreeOper(oper))
+                  |other=> raise ErrorHandler.unexpectedSymbolExpr("Tok.Number or operator",
                          TokUtil.tokToStr(other, TokUtil.tokValAndKind), expr)
 
-       fun firstHiPredExprAndRest(toks:TokenAtLine list) =
+       fun firstHiPredExprAndRest(toks:Tok.TokenAtLine list) =
               let val first = List.nth(toks,0)
                 val second = List.nth(toks,1)
                 val third = List.nth(toks,2)
@@ -141,7 +143,7 @@ fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree =
               (first,second,third,rest)
             end
 
-       fun handleExpectedOperator(found:Token) = 
+       fun handleExpectedOperator(found:Tok.Token) = 
          raise
          ErrorHandler.unexpectedSymbolExpr("operrator",TokUtil.tokToStr(found,TokUtil.tokValAndKind),expr)
 
@@ -154,7 +156,7 @@ fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree =
                    val rest = tl(afterFirstTok)
                in
                  case secondTok of
-                   Symbol(Operator(oper)) => 
+                   Tok.Symbol(Tok.Operator(oper)) => 
                         (*Expressions of high predecence is calculated beforehand*)
                         if ListUtil.member oper highPriOperators then 
                           let val (num1, opp, num2, rest) = firstHiPredExprAndRest(toks)
@@ -166,7 +168,9 @@ fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree =
                            in
                              (*The result of the high predence expression is
                              added back to the list of tokens to parse*)
-                            createExprTree(mkTokAtLine(Litteral(Number(hiPredEvaluated)),0)::rest,expr)
+                            createExprTree(
+                            (Tok.Litteral(Tok.Number(hiPredEvaluated)),0) ::
+                                rest,expr)
                            end
                         else 
                           Node(createExprTree([firstTok], expr), TreeOper(oper),
@@ -216,16 +220,16 @@ fun repeatStr(str:string, 0) = ""
         then (Char.toString(Util.hdString str ), String.substring(str,1, size(str) -1))
       else getOperatorFromString(Util.rmHeadOfString str,l1,l2)
 
-fun getTokenByKind(t:string):Token =
+fun getTokenByKind(t:string):Tok.Token =
   let val tComparator = ListUtil.member(t)
   in
-    if tComparator keywords then Keyword(t)
-    else if tComparator functions then Function(t)
-    else if tComparator pipeFunctions then PipeFunction(t)
-    else if tComparator operators then Symbol(Operator(t))
-    else if tComparator predicateOperators then Symbol(PredicateOperator(t))
-    else if tComparator syntaxSymbols then Symbol(SyntaxSymbol(t))
-    else Identifier(t)
+    if tComparator keywords then Tok.Keyword(t)
+    else if tComparator functions then Tok.Function(t)
+    else if tComparator pipeFunctions then Tok.PipeFunction(t)
+    else if tComparator operators then Tok.Symbol(Tok.Operator(t))
+    else if tComparator predicateOperators then Tok.Symbol(Tok.PredicateOperator(t))
+    else if tComparator syntaxSymbols then Tok.Symbol(Tok.SyntaxSymbol(t))
+    else Tok.Identifier(t)
   end
 
   fun strSubOption(str,idx) = 
@@ -233,7 +237,7 @@ fun getTokenByKind(t:string):Token =
     else NONE
 
 
-  fun scan(str:string, lineNo:int):TokenAtLine list =
+  fun scan(str:string, lineNo:int):Tok.TokenAtLine list =
     let
       val firstChar = String.sub(str, 0) 
       val secondCharOpt = strSubOption(str,1) 
@@ -243,8 +247,8 @@ fun getTokenByKind(t:string):Token =
     in 
       if ParseUtil.isStartOfIdentifier(firstChar) then
         let val (firstId, rest) = ParseUtil.getFirstIdentifier(str)
-            val token = getTokenByKind(firstId)
-        in (token, lineNo) :: scan(rest, lineNo)
+            val tok  = getTokenByKind(firstId)
+        in (tok, lineNo) :: scan(rest, lineNo)
         end
 
       else if ParseUtil.isStartOfwhitespace(firstChar) then scan(Util.rmHeadOfString(str), lineNo)
@@ -252,24 +256,24 @@ fun getTokenByKind(t:string):Token =
       else if ParseUtil.isStartOfString(firstChar) then
         let val ssNoFirstSep = Util.strToSs(Util.rmHeadOfString(str))
             val (strContent, rest) = Substring.splitl (fn c => c <> stringSep) ssNoFirstSep
-        in  (Litteral(String(Util.ssToStr strContent)), lineNo) ::
+        in  (Tok.Litteral(Tok.String(Util.ssToStr strContent)), lineNo) ::
         scan(Util.rmHeadOfString(Util.ssToStr(rest)),lineNo)
         end
       else if ParseUtil.isStartOfSubtraction(firstChar, secondCharOpt) then 
         let val (number,rest) = ParseUtil.getFirstNumberFromString(Util.rmHeadOfString(str))
         in  (getTokenByKind("+"),lineNo) ::
-             (Litteral(Number(#1(ParseUtil.getFirstNumberFromString("-" ^
+             (Tok.Litteral(Tok.Number(#1(ParseUtil.getFirstNumberFromString("-" ^
              Real.toString(number))))),lineNo):: scan(rest,lineNo)
         end
       else if ParseUtil.isStartOfDigit(firstChar) then
         let val (number, rest) = ParseUtil.getFirstNumberFromString(str)
-        in ( Litteral(Number(number)), lineNo) :: scan(rest, lineNo)
+        in ( Tok.Litteral(Tok.Number(number)), lineNo) :: scan(rest, lineNo)
         end
 
       else if ParseUtil.isStartOfnegativeDigit(firstChar,secondCharOpt ,thirdCharOpt) then 
         let val parenRemoved = Util.rmFirstCharMatchOfString(#")", Util.rmHeadOfString(str))
             val (number, rest) = ParseUtil.getFirstNumberFromString(parenRemoved)
-        in ( Litteral(Number(number)), lineNo) :: scan(rest, lineNo)
+        in ( Tok.Litteral(Tok.Number(number)), lineNo) :: scan(rest, lineNo)
         end
 
       else if ParseUtil.isNewline(firstChar) then scan(Util.rmHeadOfString(str), lineNo +1)
@@ -295,7 +299,7 @@ fun cat s =
     TextIO.closeIn f
   end;
 
-fun trimAndScan(str:string):TokenAtLine list =
+fun trimAndScan(str:string):Tok.TokenAtLine list =
   let
     val noComments = rmComments(Util.splitStrByNewline(str))
     val noCommentOrWhitespace = rmWs(ListUtil.listToStr(noComments,Util.I," "))
@@ -303,7 +307,7 @@ fun trimAndScan(str:string):TokenAtLine list =
     scan(noCommentOrWhitespace,1)
   end
 
-fun tokListToStr(tl:TokenAtLine list):string =
+fun tokListToStr(tl:Tok.TokenAtLine list):string =
   case tl of
      [] => ""
     |(x::xs) =>

@@ -1,3 +1,4 @@
+use "tok.sml";
 use "util/util.sml";
 structure ParseUtil = 
 struct 
@@ -37,12 +38,22 @@ fun getFirstNumberFromString(str:string):(real*string) =
    else getFirstNumberFromString(Util.rmHeadOfString(str))  (*Drop first char and retry*)
   end
 
+fun getFirstNumberFromStringAsLitteral(source:string):real = 
+  let val (num, rest) = getFirstNumberFromString(source)
+  in num
+  end
+fun getFirstStringAsLitteral(source:string,stringSep:char):string =  
+     Util.takeWhileStr(Util.tlString(source),(fn c=>c <> stringSep))
+
+(*Excpects the string to be correctly formatted*)
+fun strToBool(str:string) = if str = "true" then true else false
 fun isStartOfIdentifier(c:char) = Char.isAlpha(c) 
 fun isStartOfwhitespace(c:char) = c = #" "
 fun isStartOfString(c:char) = c = stringSep
 fun isNewline(c:char) = c = #"\n"
 fun isStartofSymbol(c:char,validSymbols:string list) = ListUtil.member (Char.toString(c)) validSymbols
 fun isStartOfDigit(c:char) = Char.isDigit(c)
+fun isStrBoolean(str:string):bool = str <>  "true" orelse str <> "false"
 
 fun isStartOfSubtraction(c1:char,c2Opt:char option) = 
         case c2Opt of 
