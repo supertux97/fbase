@@ -18,6 +18,7 @@ val fieldDelim = #";"
 val idString = #"s"
 val idNumber = #"n"
 val idBool = #"b"
+val endOfInfo = #"}"
 
 fun chrToStr(c) = Char.toString(c)
 
@@ -61,7 +62,7 @@ fun getLitteral(source:string):Tok.litteral=
       end
 
     else  
-      let val (id,rest) = Substring.splitl (fn c=>c <> Scanner.stringSep) (Util.strToSs(source))
+      let val (id,rest) = Substring.splitl (fn c=>c <> endOfInfo) (Util.strToSs(source))
       in case Util.ssToStr(id) of 
            "true" => Tok.Bool(true)
            |"false" => Tok.Bool(false)
@@ -113,7 +114,7 @@ fun fieldInfoToStr(fi:fieldInfo,idx:int) =
 (*Parses position and type information from a metadata source. Type information
 includes type of the field and possibly a default value
  A list of the following format is returned: Map{fieldName:singleField, fieldName2:singleField,...} *)
-fun parseFieldInfo(source:string): fieldInfo list = 
+fun parse(source:string): fieldInfo list = 
   let val fieldMap = StrMap.empty() 
       val fields = Util.splitStr(source,fieldDelim) 
       val fieldInfo = parseFileInfoFromFieldList(fields) 
@@ -124,7 +125,7 @@ fun parseFieldInfo(source:string): fieldInfo list =
 (*TESTING*)
 val shouldPrint = false
 val metadata = "name{s,'jon doe'};salary{n};adress{s};isPartTime{b}"
-val fields = parseFieldInfo(metadata)
+val fields = parse(metadata)
 val fieldsStr = ListUtil.mapWithIndex fieldInfoToStr fields
 val _ = print(if shouldPrint then ListUtil.listToStr(fieldsStr, Util.I, "\n") else "")
 end;

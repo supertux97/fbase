@@ -15,6 +15,7 @@ fun tokValAndKind(value:string, kind:string) = Util.format("$:$", [value, kind])
 fun tokVal(value:string, kind:string) = value
 fun tokKind(value:string, kind:string) = kind
 
+
 fun getTok(tal: TokenAtLine) = 
  case tal of (t,_) => t 
 
@@ -46,4 +47,6 @@ fun litteralToStr(lit:Tok.litteral) =
      |Tok.String(s) => s
      |Tok.Bool(b) => if b then "true" else "false"
 
+fun valOfTok(t:TokenAtLine) = 
+  tokToStr(getTok(t),tokVal)
 end;

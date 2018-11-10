@@ -82,7 +82,7 @@ fun parseSingleRow(metadata: MetadataParser.fieldInfo list, row:string, lineNo:i
       mapFields(fields, metadata, map,lineNo, filename)
   end
 
-(*Uses a list of metadata information to parse a list of data-rows into a list of maps. Each map 
+(*Parses data from a single string. Uses a list of metadata information to parse a list of data-rows into a list of maps. Each map 
  represents a single row and contains a mapping between the column-name and the actual value. 
  If no value appears in the field and a default value is defined in the metadata for this
  field, that value is used. Othervise, an exception is trown.*)
@@ -102,10 +102,10 @@ fun find(data: (Tok.litteral StrMap.Map) list, index:int, fieldName:string):stri
      |NONE => "field not found"
 
   end 
-val metadataParsed = MetadataParser.parseFieldInfo(Util.fileToStr("employees.md"))
+val metadataParsed = MetadataParser.parse(Util.fileToStr("employees.md"))
 val data = Util.fileToStr("employees.dat")  
 val lines = Util.splitStr(data, #"\n")
 val dataParsed = parse(rev(metadataParsed), lines, "employees.dat")
 
-val _ = print(find(dataParsed,0,"isPartTime"))
+val _ = print(find(dataParsed,0, "isPartTime"))
 end;

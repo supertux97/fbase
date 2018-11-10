@@ -1,0 +1,2 @@
+from Employees as E, Students as S
+output *

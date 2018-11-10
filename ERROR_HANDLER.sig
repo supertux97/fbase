@@ -32,4 +32,5 @@ signature ERROR_HANDLER =
     val typeErrorStoredData:string*string*int*string -> exn
 
     val missingData:string*int -> exn
+    val noSuchTable:string -> exn
  end;

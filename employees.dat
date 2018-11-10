@@ -1,6 +1,6 @@
-'Per Olsen';300000;'Moss';false
-';400000;'Oslo';true
-'Peder Olsen';500000;'Moss';false
+'Peder Olsen';500000;'Moss';
+'Per Olsen';;'Moss';false
+;400000;'Oslo';true
 'Hanne Stormo';350000;'Halden';true
 'Petter Sansemo';200000;'Sarpsborg';false
 'Arne Li';150000;'Moss';false

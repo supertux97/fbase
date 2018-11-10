@@ -24,13 +24,17 @@ fun op $ (n:int) = Int.toString(n)
 
 fun I(a) = a
   
-(*Splits a string into parts defined by a delimter. The*)
-fun splitStr(str:string, delim:char) = 
+(*Splits a string into parts defined by a delimter. If the delimiter appears at
+ the back, an empty string is returned as the last elem*)
+fun splitStr(str:string, delim:char):string list = 
   if String.size(str) = 0 then []
   else 
   let val (firstPart,rest) = Substring.splitl (fn c=>c<>delim) (strToSs(str))
   in ssToStr(firstPart) :: (if Substring.isEmpty(rest) then []
-                                    else splitStr(tlString(ssToStr(rest)),delim))
+                                    else 
+                                      if ssToStr(rest) = Char.toString(delim)
+                                      then [""] 
+                                      else splitStr(tlString(ssToStr(rest)),delim))
   end
 
 (*Creates a tring, character by character as long as the pred for the curent

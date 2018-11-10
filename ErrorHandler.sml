@@ -16,7 +16,7 @@ structure ErrorHandler:ERROR_HANDLER =
     exception MalformedMetadataException of string
     exception TypeErrorStoredDataException of string
     exception MissingDataException of string
-
+    exception NoSuchTableException of string
     fun warning(degree:severity, explanation:string, lineNo:int):unit = 
       let val typeWarning = 
             case degree of 
@@ -70,5 +70,7 @@ structure ErrorHandler:ERROR_HANDLER =
      raise MissingDataException(Util.format(
         "ERROR:Missing data in line no. $ in file $. No default data defined",
            [file, Util.$(lineNo)]))
-
+  
+  fun noSuchTable(table:string) = 
+    raise NoSuchTableException(Util.format("Data and/or metadata for table $ could not be found",[table]))
   end;

@@ -2,6 +2,9 @@ use "scanner.sml";
 use "ErrorHandler.sml";
 use "operators.sml";
 use "util/listUtil.sml";
+use "metadataParser.sml";
+use "dataParser.sml";
+use "map/map.sml";
 open TokUtil;
 open Scanner;
 
@@ -15,11 +18,14 @@ type Query = {from:TokenAtLine list,
 val queryTypeSeperators = ["from","merge","filter","output"]
 type aliasToTablename = string*string
 
+val metadataFileEnding = ".md"
+val dataFileEnding = ".dat"
+
 (*Gets the tokens associated with a query. If the query-type is not present, an
  empty list is returned. The keyword used to indicate the start of the queryType
  is not included*)
 fun getToksOfQueryType(toks:TokenAtLine list, queryType:string) = 
-  let val toksFromTypeAndRest = ListUtil.dropWhile(toks, (fn t => valOfTok(t) <> queryType) )
+  let val toksFromTypeAndRest = ListUtil.dropWhile(toks, (fn t => TokUtil.valOfTok(t) <> queryType) )
       val ofType = if length(toksFromTypeAndRest) > 0 then 
                       ListUtil.takeWhile(tl(toksFromTypeAndRest), (fn t => not(ListUtil.member (valOfTok(t)) queryTypeSeperators)))
                   else []
@@ -53,9 +59,33 @@ fun splitToksIntoQueryParts(toks: TokenAtLine list) =
      filter=getToksOfQueryType(toks, "filter"),
      output=getToksOfQueryType(toks, "output")}
 
-  val q = "from Employee as E, Students as S, Salary merge E and S using id filter id = 32"  
+(*Loades requsted data into a map. Each map entry has a key of the table name,
+  and the value is a list of the maps. Each of those maps inside the list
+    corespnds to a row.
+Map( Table1: [Map:(field1:"test",field2:"apple",...), ...], Table2: [] )  *)
+
+fun loadRequestedTables(requested:aliasToTablename list) =
+  let fun inner((name,table)::restRequested, map) = 
+          let val metadataForTable = MetadataParser.parse(Util.fileToStr(table ^ metadataFileEnding))
+              val dataForTable = Util.fileToStr(table ^ dataFileEnding) 
+              val rowsForTable = Util.splitStr(dataForTable, #"\n")
+              val parsedDataForTable = DataParser.parse(metadataForTable,
+              rowsForTable, table ^ dataFileEnding)
+          in inner(restRequested, StrMap.insert(map,name,parsedDataForTable) )
+          end
+        |inner ([], map) = map
+  in inner(requested, StrMap.empty())
+  end
+  handle IO => ErrorHandler.noSuchTable("")  
+
+fun runQuery(q:string):string = 
+  let
   val parts = q |> trimAndScan |> splitToksIntoQueryParts
   val from = #from parts
-  val tal = getTablesAndAliases(from)
-  val _ = print(ListUtil.listToStr(tal,(fn tal=>Util.format("$->$",[#1 tal, #2 tal])), "\n"))
+  val infoForRequstedTables = getTablesAndAliases(from)
+  val mapOfTablesToData = loadRequestedTables(infoForRequstedTables)
+    in "test" 
+  end
+
+  val t = runQuery(Util.fileToStr("query.txt"))
 end;
