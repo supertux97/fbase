@@ -1,5 +1,4 @@
 use "map/map.sml";
-use "tok.sml";
 use "metadataParser.sml";
 open MetadataParser
 structure DataParser = 
@@ -102,10 +101,4 @@ fun find(data: (Tok.litteral StrMap.Map) list, index:int, fieldName:string):stri
      |NONE => "field not found"
 
   end 
-val metadataParsed = MetadataParser.parse(Util.fileToStr("employees.md"))
-val data = Util.fileToStr("employees.dat")  
-val lines = Util.splitStr(data, #"\n")
-val dataParsed = parse(rev(metadataParsed), lines, "employees.dat")
-
-val _ = print(find(dataParsed,0, "isPartTime"))
 end;

@@ -24,6 +24,7 @@ the element is true*)
 fun takeWhileNot(l:'a list, pred:('a->bool)) = 
   takeWhile(l,(fn e=>not(pred(e))))
 
+fun isNonEmpty(l:'a list) = List.length(l) > 0
 (*Creates a copy of the passed list. As long as the predicate is true, elements
  from the passed list is not included into the returned*)
 fun dropWhile(l:'a list, pred:('a->bool)) = 
@@ -76,6 +77,19 @@ fun fillList(n) =
     fillInner(n,[])
   end
 
+(*Compare retunrs wheter the first element is bigger than the second*)
+fun max(l:'a list, compare:'a*'a->bool):'a = 
+  let fun inner(l,biggest) =  
+    case l of 
+      (x::xs) => if compare(x,biggest) then 
+                    inner(xs,x)
+                else inner(xs,biggest)
+      |[] => biggest
+  in 
+    inner(l,List.nth(l,0))
+  end
+
+fun intGreatherThan(a:int, b:int) = a > b
 fun dropN([], n:int) = []
   | dropN(l,0) = l
   | dropN(x::xs,n) = dropN(xs,n-1) 

@@ -17,6 +17,10 @@ structure ErrorHandler:ERROR_HANDLER =
     exception TypeErrorStoredDataException of string
     exception MissingDataException of string
     exception NoSuchTableException of string
+    exception MultipleTablesNoMergeException of string
+    exception InvalidMergeException of string
+    exception UnknownColumnException of string
+    exception  InvalidRefererException of string
     fun warning(degree:severity, explanation:string, lineNo:int):unit = 
       let val typeWarning = 
             case degree of 
@@ -72,5 +76,19 @@ structure ErrorHandler:ERROR_HANDLER =
            [file, Util.$(lineNo)]))
   
   fun noSuchTable(table:string) = 
-    raise NoSuchTableException(Util.format("Data and/or metadata for table $ could not be found",[table]))
+    raise  NoSuchTableException(Util.format("Data and/or metadata for table $ could not be found",[table]))
+
+  fun unknownColumn(colname:string, tablename:string, lineNo:int) = 
+   raise UnknownColumnException(
+      Util.format("The column $ in table $ does not exist. At line no. $",
+      [colname, tablename, Util.$(lineNo)])) 
+
+  fun multipleTablesNoMerge(unit) = 
+    raise MultipleTablesNoMergeException(
+      "Cannot use multiple tables without using merge")
+  
+  fun invalidReferer(message:string) = 
+    raise InvalidRefererException(message)
+  fun invalidMerge(desc:string) = 
+    raise InvalidMergeException(desc)
   end;

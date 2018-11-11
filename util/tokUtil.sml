@@ -49,4 +49,18 @@ fun litteralToStr(lit:Tok.litteral) =
 
 fun valOfTok(t:TokenAtLine) = 
   tokToStr(getTok(t),tokVal)
+
+fun tokAtLineToTok(tal:TokenAtLine):Tok.Token = 
+  case tal of (tok,_) => tok
+
+fun listOfTokenAtLineToToks(tals:Tok.TokenAtLine list):Tok.Token list = 
+  List.map tokAtLineToTok tals
+
+fun litteralEquals(l1:Tok.litteral,l2:Tok.litteral) = 
+  case (l1,l2) of
+    (Tok.Number(n1), Tok.Number(n2) ) => 
+      Real.toString(n1) = Real.toString(n2)   
+    |(Tok.Bool(b1), Tok.Bool(b2)) => b1 = b2
+    |(Tok.String(s1), Tok.String(s2)) => s1 = s2 
+    |other => false
 end;

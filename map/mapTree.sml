@@ -40,5 +40,20 @@ struct
                          EQUAL => SOME(v)
                         |LESS => get(l,key) 
                         |GREATER => get(r,key)
+
+  (*Adds the entries of two maps togheter to form a single map. The maps
+  have to be of the same kind.*)
+  fun addTwoMaps(m1:'a Map, m2:'a Map):'a Map = 
+    let fun addToMap(from,to) = 
+      case from  of 
+       Node(k,v,l,r) => let val this = insert(to,k,v)
+                            val left = addToMap(l,this)
+                            val right = addToMap(r,left)
+                        in right
+                        end
+      |EmptyNode => to
+    in addToMap(m1,m2)
+    end
+
 end;
 

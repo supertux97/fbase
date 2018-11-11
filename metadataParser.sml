@@ -119,13 +119,7 @@ fun parse(source:string): fieldInfo list =
       val fields = Util.splitStr(source,fieldDelim) 
       val fieldInfo = parseFileInfoFromFieldList(fields) 
   in 
-   fieldInfo 
+   rev(fieldInfo)
   end
 
-(*TESTING*)
-val shouldPrint = false
-val metadata = "name{s,'jon doe'};salary{n};adress{s};isPartTime{b}"
-val fields = parse(metadata)
-val fieldsStr = ListUtil.mapWithIndex fieldInfoToStr fields
-val _ = print(if shouldPrint then ListUtil.listToStr(fieldsStr, Util.I, "\n") else "")
 end;

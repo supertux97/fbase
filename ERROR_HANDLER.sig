@@ -24,13 +24,28 @@ signature ERROR_HANDLER =
  
     (*Expected*Found*lineNo*) 
     val malformedQuery:string*string*int -> exn
-
+  
     (*Expected*Found*lineNo*)
     val malformedMetadata:string*string -> exn
 
     (*Expected type*Found type*lineNo*file*)
     val typeErrorStoredData:string*string*int*string -> exn
 
+    (*Filename*lineno*)
     val missingData:string*int -> exn
+
+    (*Table name*)
     val noSuchTable:string -> exn
+  
+    (*Description*) 
+    val multipleTablesNoMerge:unit -> exn 
+
+    (*Description*)
+    val invalidMerge:string -> exn
+
+    (*Colname*Tablename*lineno*)
+    val unknownColumn:string*string*int -> exn
+
+    (*Description*)
+    val invalidReferer:string -> exn
  end;

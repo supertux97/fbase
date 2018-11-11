@@ -72,6 +72,10 @@ fun format(str:string, vals:string list) =
                |(f,r) => Char.toString(f) ^ format(ListUtil.listToStr(r,Char.toString,""), vals)
   end
 
+fun repeatStr(str:string,numTimes:int):string = 
+    if numTimes <= 0 then str 
+    else str ^ repeatStr(str,numTimes -1)
+
 fun fib 0 = 1
    |fib 1 = 1
    |fib n = fib(n-1) + fib(n-2)
