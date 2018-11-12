@@ -68,7 +68,7 @@ fun mapFields(
         (f::fs) => mapFields(
                       fs,ms,
                       parseSingleFieldIntoMap(f, m, map, lineNo, filename),
-                      lineNo, filename)
+                      lineNo + 1 , filename)
         |[] => map )
     |[] => map
 
@@ -89,7 +89,9 @@ fun parse(
       metadata: MetadataParser.fieldInfo list, rows:string list, 
       filename:string): (Tok.litteral StrMap.Map) list = 
 
-  let val rowsParsed = ListUtil.mapWithIndex (fn (r,i) => parseSingleRow(metadata,r,i+1,filename)) rows
+  let val rowsParsed = rev(ListUtil.mapWithIndex 
+                             (fn (r,i) => parseSingleRow(metadata,r,i+1,filename))
+                             rows)
   in rowsParsed
   end
 

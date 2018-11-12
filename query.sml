@@ -96,7 +96,7 @@ fun loadRequestedTables(requested:aliasToTablename list) =
   let fun inner( (name,table)::restRequested, map) = 
           let val metadataForTable = MetadataParser.parse(Util.fileToStr(table ^ metadataFileEnding))
               val dataForTable = Util.fileToStr(table ^ dataFileEnding) 
-              val rowsForTable = rev(Util.splitStr(dataForTable, #"\n"))
+              val rowsForTable = Util.splitStr(dataForTable, #"\n")
               val parsedDataForTable:Tok.litteral StrMap.Map list  = DataParser.parse(metadataForTable,
                   rowsForTable, table ^ dataFileEnding)
           in inner(restRequested, StrMap.insert(map,name,parsedDataForTable) )
@@ -126,7 +126,6 @@ fun getMergeInfo(toks:Token list, lineNo:int):mergeInfo option=
     other,(fn
      t=>TokUtil.tokToStr(t, TokUtil.tokValAndKind))
      ," "),lineNo)
-
 
 (*Returns an option of a row defined by a specific field wit ha specififc value-
  from a table*)
@@ -269,19 +268,21 @@ fun getOutputList(toks:Token list,lineNo:int): outputList =
 
 
   fun getFirstLineNo(part):int = 
-    getLineNo(List.nth(part,0))
+    if List.length(part) = 0 then ~1
+    else getLineNo(List.nth(part,0))
 
 (*Runs the query, from the query string source, to the output in string format*)
 fun runQuery(q:string):string = 
   let
     val parts = q |> trimAndScan |> splitToksIntoQueryParts
-
     val from = #from parts
     val merge = #merge parts
     val output = #output parts
     val filter = #filter parts
 
+    val mapped = List.map TokUtil.tokAtLineToTok merge
     val mergeInfo = getMergeInfo( (List.map TokUtil.tokAtLineToTok merge),getFirstLineNo(merge))
+
     val infoForRequstedTables = getTablesAndAliases(from)
     val mapOfTablesToData = loadRequestedTables(infoForRequstedTables)
     val mergedData = performMerge(infoForRequstedTables, mapOfTablesToData, mergeInfo)

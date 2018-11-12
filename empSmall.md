@@ -1,1 +1,1 @@
-name{s};salary{n};depID{n}
+name{s,'Jon doe'};salary{n};depID{n}

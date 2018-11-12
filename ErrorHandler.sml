@@ -72,7 +72,7 @@ structure ErrorHandler:ERROR_HANDLER =
 
    fun missingData(file:string, lineNo:int) = 
      raise MissingDataException(Util.format(
-        "ERROR:Missing data in line no. $ in file $. No default data defined",
+        "ERROR:Missing data in file $ at line no. $ No default data defined",
            [file, Util.$(lineNo)]))
   
   fun noSuchTable(table:string) = 
