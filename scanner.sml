@@ -18,6 +18,7 @@ val pipeFunctions = ["upper","lower"]
 val operatorsLenOne = ["+","-","*","/"]
 val operators = operatorsLenOne
 val stringSep = #"'"
+  val commentSymbol = #"#"
 val predicateOperatorsLenOne = ["=","<",">"]
 val predicateOperatorsLenTwo = ["<=",">=", "!="]
 val predicateOperators = predicateOperatorsLenOne @ predicateOperatorsLenTwo
@@ -33,35 +34,21 @@ val validSymbols = predicateOperators @ syntaxSymbols @ operators @ firstOfTwoLe
 
 val highPriOperators = ["*","/"]
 
-(*Removes exess whitespace. Two or more whitespaces are squezed into one*)
-fun rmWs(str:string):string =
-  case (Util.getCharAtIndex(str,0), Util.getCharAtIndex(str,1))  of
-      (SOME(#" "), SOME(#" ")) => rmWs(String.substring(str,1, size(str) -1))
-    | (SOME(_), SOME(_)) => String.substring(str,0,1) ^ rmWs(String.substring(str,1,size(str) -1))
-    | (_, _) => str (*The first or both are empty*)
-
-fun rmWsTailRec(str:string):string = 
-  let fun rmWsInner(str,strAcc) = 
-    case (Util.getCharAtIndex(str,0), Util.getCharAtIndex(str,1))  of
-      (SOME(#" "), SOME(#" ")) => rmWsInner(String.substring(str,1, size(str)-1) ,strAcc)
-    | (SOME(_), SOME(_)) => rmWsInner(String.substring(str,1,size(str)-1), strAcc^ String.substring(str,0,1) )
-    | (_, _) => strAcc(*The first or both are empty*)
-  in
-   rmWsInner(str,"") 
-  end
-
- fun rmComments(lines: string list):string list =
+(*Removes all comments from a list of lines. A comment has effects from where it
+ is found, to the rest of the line.*)
+fun rmComments(lines: string list):string list =
   case lines of
     (x::xs) =>
     let
       val substr = Util.strToSs(x)
-      val (noComment, comment) = Substring.splitl (fn c => c <> #"#") substr
+      val (noComment, comment) = Substring.splitl (fn c => c <> commentSymbol) substr
     in
       Util.ssToStr(noComment) :: rmComments(xs)
     end
     |[] => []
 
- fun rmCommentsTailrec(lines: string list):string list =
+
+fun rmCommentsTailrec(lines: string list):string list =
    let fun rmTailRec(lines:string list, result:string list) = 
     case lines of
       (x::xs) =>
@@ -76,16 +63,16 @@ fun rmWsTailRec(str:string):string =
       rmTailRec(lines,[])
    end
 
-fun getTok(tal: TokenAtLine) = 
- case tal of (t,_) => t 
 
-fun getLineNo(tal:TokenAtLine) =
-  case tal of(_,lineNo) => lineNo
-fun convToken(tok:Token, f:(Token -> 'a)) = f(tok)
+(*
+==============================
+======EXPRESIONS=============
+=============================
+ *)
 
-  (*Node: Left Val Right*)
-  datatype TreeLitteral = TreeNum of real | TreeOper of string
-  datatype ExprTree = 
+(*Node: Left Val Right*)
+datatype TreeLitteral = TreeNum of real | TreeOper of string
+datatype ExprTree = 
               EmptyNode |
               treeLit of TreeLitteral | 
               Node of ExprTree * TreeLitteral * ExprTree 
@@ -111,7 +98,6 @@ fun convToken(tok:Token, f:(Token -> 'a)) = f(tok)
          |unknown => raise ErrorHandler.unexpectedSymbolExpr("number","other",source)
     end
 
-fun mkTokAtLine(tok:Token, line:int):TokenAtLine = (tok, line)
 
 
 (*Creates an expression tree for a list of tokens. 
@@ -126,7 +112,7 @@ fun mkTokAtLine(tok:Token, line:int):TokenAtLine = (tok, line)
  tree. Eg: 2*4+3 will result in the tree: Parent:+ Left:8 Right:3*)
 fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree = 
   let  fun createSingleNode(tok: TokenAtLine):ExprTree = 
-             case getTok(tok) of
+             case TokUtil.getTok(tok) of
                    Litteral(Number(n)) => treeLit(TreeNum(n))
                   |Symbol(Operator(oper)) => treeLit(TreeOper(oper))
                   |other=> raise ErrorHandler.unexpectedSymbolExpr("number or operator",
@@ -150,7 +136,7 @@ fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree =
      [] => EmptyNode
     |[singleTok] => createSingleNode(singleTok)
     |(firstTok::afterFirstTok) => 
-               let val secondTok = getTok(hd(afterFirstTok))
+               let val secondTok = TokUtil.getTok(hd(afterFirstTok))
                    val rest = tl(afterFirstTok)
                in
                  case secondTok of
@@ -166,7 +152,7 @@ fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree =
                            in
                              (*The result of the high predence expression is
                              added back to the list of tokens to parse*)
-                            createExprTree(mkTokAtLine(Litteral(Number(hiPredEvaluated)),0)::rest,expr)
+                            createExprTree(TokUtil.mkTokAtLine(Litteral(Number(hiPredEvaluated)),0)::rest,expr)
                            end
                         else 
                           Node(createExprTree([firstTok], expr), TreeOper(oper),
@@ -175,11 +161,9 @@ fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree =
         end
     end
 
-fun repeatStr(str:string, 0) = ""
-  | repeatStr(str:string, 1) = str
-  | repeatStr(str, n) = str ^ repeatStr(str,n-1) 
-
-
+(*Creates a string repsetntation of a expression tree. Be aware that some parts
+  of the expression may have been evaluated beforehand. This is the case for
+  the high predecence operators division and multiplication*)
  fun exprTreeToStr(exprTree: ExprTree) = 
    let fun getValue(v:TreeLitteral) = 
          case v of 
@@ -195,7 +179,15 @@ fun repeatStr(str:string, 0) = ""
    end
 
 
-  (*Get the first operator from a string and the rest of the string
+
+(*
+==============================
+======TOKENIZING/SCANNING=====
+=============================
+ *)
+
+  (*Get the first operator from a string and the rest of the string. The
+  function does also handle opeators of length > 2
    Unwanted chars are removed unitil a valid symbol occurs.
 
    The function will first read one symbol and then the next (if any)
@@ -216,16 +208,17 @@ fun repeatStr(str:string, 0) = ""
         then (Char.toString(Util.hdString str ), String.substring(str,1, size(str) -1))
       else getOperatorFromString(Util.rmHeadOfString str,l1,l2)
 
-fun getTokenByKind(t:string):Token =
-  let val tComparator = ListUtil.member(t)
+
+fun determineTokTypeForReserved(s:string):Token =
+  let val tComparator = ListUtil.member(s)
   in
-    if tComparator keywords then Keyword(t)
-    else if tComparator functions then Function(t)
-    else if tComparator pipeFunctions then PipeFunction(t)
-    else if tComparator operators then Symbol(Operator(t))
-    else if tComparator predicateOperators then Symbol(PredicateOperator(t))
-    else if tComparator syntaxSymbols then Symbol(SyntaxSymbol(t))
-    else Identifier(t)
+    if tComparator keywords then Keyword(s)
+    else if tComparator functions then Function(s)
+    else if tComparator pipeFunctions then PipeFunction(s)
+    else if tComparator operators then Symbol(Operator(s))
+    else if tComparator predicateOperators then Symbol(PredicateOperator(s))
+    else if tComparator syntaxSymbols then Symbol(SyntaxSymbol(s))
+    else Identifier(s)
   end
 
   fun strSubOption(str,idx) = 
@@ -233,31 +226,32 @@ fun getTokenByKind(t:string):Token =
     else NONE
 
 
+  (*Splitts a string of the query into different tokens. Excess whitespace is
+  ignored. If an unknwon symbol is found, an exeption will be trown*)
   fun scan(str:string, lineNo:int):TokenAtLine list =
     let
       val firstChar = String.sub(str, 0) 
       val secondCharOpt = strSubOption(str,1) 
       val thirdCharOpt = strSubOption(str, 2)  
-      val subString = Substring.full(str)
+      val subString = Util.strToSs(str) 
       
     in 
       if ParseUtil.isStartOfIdentifier(firstChar) then
         let val (firstId, rest) = ParseUtil.getFirstIdentifier(str)
-            val token = getTokenByKind(firstId)
+            val token = determineTokTypeForReserved(firstId)
         in (token, lineNo) :: scan(rest, lineNo)
         end
 
       else if ParseUtil.isStartOfwhitespace(firstChar) then scan(Util.rmHeadOfString(str), lineNo)
 
       else if ParseUtil.isStartOfString(firstChar) then
-        let val ssNoFirstSep = Util.strToSs(Util.rmHeadOfString(str))
-            val (strContent, rest) = Substring.splitl (fn c => c <> stringSep) ssNoFirstSep
-        in  (Litteral(String(Util.ssToStr strContent)), lineNo) ::
-        scan(Util.rmHeadOfString(Util.ssToStr(rest)),lineNo)
+        let val (firstStr, rest) = ParseUtil.getFirstString(str, stringSep)  
+        in  (Litteral(String(firstStr)), lineNo) ::
+              scan(rest,lineNo)
         end
       else if ParseUtil.isStartOfSubtraction(firstChar, secondCharOpt) then 
         let val (number,rest) = ParseUtil.getFirstNumberFromString(Util.rmHeadOfString(str))
-        in  (getTokenByKind("+"),lineNo) ::
+        in  (determineTokTypeForReserved("+"),lineNo) ::
              (Litteral(Number(#1(ParseUtil.getFirstNumberFromString("-" ^
              Real.toString(number))))),lineNo):: scan(rest,lineNo)
         end
@@ -276,7 +270,7 @@ fun getTokenByKind(t:string):Token =
 
       else if ParseUtil.isStartofSymbol(firstChar,validSymbols) then 
           let val (symbol, rest) = getOperatorFromString(str, oneLenOperators, twoLenOperators)
-          in (getTokenByKind(symbol),lineNo) :: scan(rest, lineNo)
+          in (determineTokTypeForReserved(symbol),lineNo) :: scan(rest, lineNo)
           end
 
       else 
@@ -284,32 +278,14 @@ fun getTokenByKind(t:string):Token =
     end
     handle Subscript => []
 
-exception UnexpectedTokensException of string * int * int
-fun cat s =
-  let
-    val f = TextIO.openIn s
-    and c = ref ""
-  in
-    while (c := TextIO.inputN (f, 1); !c <> "") do
-      TextIO.output (TextIO.stdOut, !c);
-    TextIO.closeIn f
-  end;
-
 fun trimAndScan(str:string):TokenAtLine list =
   let
     val noComments = rmComments(Util.splitStrByNewline(str))
-    val noCommentOrWhitespace = rmWs(ListUtil.listToStr(noComments,Util.I," "))
+    val noCommentsStr = ListUtil.listToStr(noComments, Util.I,"")
   in
-    scan(noCommentOrWhitespace,1)
+    scan(noCommentsStr,1)
   end
 
-fun tokListToStr(tl:TokenAtLine list):string =
-  case tl of
-     [] => ""
-    |(x::xs) =>
-      case x of
-        (tok, lineNo) =>
-          Util.format("[$] $", [Util.$lineNo, TokUtil.tokToStr(tok,TokUtil.tokValAndKind)]) ^ "\n" ^ tokListToStr(xs)
 
 fun evalFromTxt(txt:string):string =
   Real.toString(evalExprTree(createExprTree(trimAndScan(txt),txt),txt))

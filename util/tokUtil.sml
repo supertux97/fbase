@@ -22,6 +22,8 @@ fun getTok(tal: TokenAtLine) =
 fun getLineNo(tal:TokenAtLine) =
   case tal of(_,lineNo) => lineNo
   
+fun mkTokAtLine(tok:Tok.Token, line:int):Tok.TokenAtLine = (tok, line)
+
 (*Creates a string representation of a given token. The supplied function
 toStrFunc allows for various kinds of formatting*)
 fun tokToStr(t:Tok.Token,toStrFunc:(string*string->string)):string =
@@ -63,4 +65,12 @@ fun litteralEquals(l1:Tok.litteral,l2:Tok.litteral) =
     |(Tok.Bool(b1), Tok.Bool(b2)) => b1 = b2
     |(Tok.String(s1), Tok.String(s2)) => s1 = s2 
     |other => false
+
+fun tokListToStr(tl:TokenAtLine list):string =
+  case tl of
+     [] => ""
+    |(x::xs) =>
+      case x of
+        (tok, lineNo) =>
+          Util.format("[$] $", [Util.$lineNo, tokToStr(tok,tokValAndKind)]) ^ "\n" ^ tokListToStr(xs)
 end;

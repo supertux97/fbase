@@ -6,6 +6,7 @@ struct
 val fieldDelim = #";"
 val stringSep = #"'"
 fun main a = a
+
 (*Tries to get the first litteral from a string source*)
 fun getLitteralFromType(
       source:string, type_:MetadataParser.Type, lineNo:int,

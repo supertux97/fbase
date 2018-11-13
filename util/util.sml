@@ -29,12 +29,12 @@ fun I(a) = a
 fun splitStr(str:string, delim:char):string list = 
   if String.size(str) = 0 then []
   else 
-  let val (firstPart,rest) = Substring.splitl (fn c=>c<>delim) (strToSs(str))
-  in ssToStr(firstPart) :: (if Substring.isEmpty(rest) then []
-                                    else 
-                                      if ssToStr(rest) = Char.toString(delim)
-                                      then [""] 
-                                      else splitStr(tlString(ssToStr(rest)),delim))
+    let val (firstPart,rest) = Substring.splitl (fn c=>c<>delim) (strToSs(str))
+    in ssToStr(firstPart) :: (if Substring.isEmpty(rest) then []
+                                      else 
+                                        if ssToStr(rest) = Char.toString(delim)
+                                        then [""] 
+                                        else splitStr(tlString(ssToStr(rest)),delim))
   end
 
 (*Creates a tring, character by character as long as the pred for the curent
@@ -86,6 +86,34 @@ fun fibTail(n)=
       else fibInner(n2, n1 + n2, remain-1)
   in 
     fibInner(1, 1, n)
+  end
+
+fun getCharAtIndex(str:string, index:int):char option =
+  let
+    fun getCharAtIndex(str:string, index:int, currIndex:int):char option =
+      if(currIndex = size(str)) then NONE
+      else if(currIndex = index) then SOME(String.sub(str, index))
+      else getCharAtIndex(str, index, currIndex +1)
+  in
+    getCharAtIndex(str, index, 0)
+  end
+
+(*Removes exess whitespace. Two or more whitespaces are squezed into one so that
+ the result is only one space*)
+fun rmWs(str:string):string =
+  case (getCharAtIndex(str,0), getCharAtIndex(str,1))  of
+      (SOME(#" "), SOME(#" ")) => rmWs(String.substring(str,1, size(str) -1))
+    | (SOME(_), SOME(_)) => String.substring(str,0,1) ^ rmWs(String.substring(str,1,size(str) -1))
+    | (_, _) => str (*The first or both are empty*)
+
+fun rmWsTailRec(str:string):string = 
+  let fun rmWsInner(str,strAcc) = 
+    case (getCharAtIndex(str,0), getCharAtIndex(str,1))  of
+      (SOME(#" "), SOME(#" ")) => rmWsInner(String.substring(str,1, size(str)-1) ,strAcc)
+    | (SOME(_), SOME(_)) => rmWsInner(String.substring(str,1,size(str)-1), strAcc^ String.substring(str,0,1) )
+    | (_, _) => strAcc(*The first or both are empty*)
+  in
+   rmWsInner(str,"") 
   end
 
 fun formatln(str:string, vals:string list) = 
@@ -140,13 +168,4 @@ fun splitStrByNewline(str:string):string list =
 fun fileToStr(fname:string):string =
   TextIO.inputAll(TextIO.openIn(fname))
 
-fun getCharAtIndex(str:string, index:int):char option =
-  let
-    fun getCharAtIndex(str:string, index:int, currIndex:int):char option =
-      if(currIndex = size(str)) then NONE
-      else if(currIndex = index) then SOME(String.sub(str, index))
-      else getCharAtIndex(str, index, currIndex +1)
-  in
-    getCharAtIndex(str, index, 0)
-  end
 end;

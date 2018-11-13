@@ -55,9 +55,9 @@ let
 
 (*Creates a string representation of the given list. toStr is used for
 converting the elemtns to a string and sep is used in between the elements*)
-fun listToStr ([], toStr:('a->string),sep:string):string = ""
-  | listToStr([x],toStr:('a->string),sep:string) = toStr x
-  | listToStr(x::xs, toStr:('a->string),sep:string) = toStr x ^ sep ^ listToStr(xs,toStr,sep)
+fun listToStr ([], toStr:('a->string), sep:string):string = ""
+  | listToStr([x], toStr, sep) = toStr x
+  | listToStr(x::xs, toStr, sep) = toStr x ^ sep ^ listToStr(xs,toStr,sep)
 
 (*Creates as string repsetentation of a given twodimentional list. toStr is used
  for converting the elemtns to a string. sepElem is used between the elements
@@ -90,6 +90,7 @@ fun max(l:'a list, compare:'a*'a->bool):'a =
   end
 
 fun intGreatherThan(a:int, b:int) = a > b
+
 fun dropN([], n:int) = []
   | dropN(l,0) = l
   | dropN(x::xs,n) = dropN(xs,n-1) 

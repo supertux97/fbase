@@ -294,7 +294,6 @@ fun runQuery(q:string):string =
   in  output
   end
 
-val _ = print(runQuery(Util.fileToStr("query.txt")))
-
+val _ = print(runQuery(Util.fileToStr("q2.txt")))
 
 end;

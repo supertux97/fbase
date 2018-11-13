@@ -50,6 +50,15 @@ fun strFromBeginningOfStr(source:string,stringSep:char):string =
 fun padStartAndEndStr(str:string,toPad:char) = 
   Util.format("$$$",[Char.toString(toPad),str,Char.toString(toPad)])
 
+(*Extracts the first string and the rest from another string. The extracted string is
+expected to be at the start of the larger string and to end with endStr.EndStr
+is not included*)
+fun getFirstString(str:string, endStr:char):(string*string) = 
+  let val noFirstSep = Util.strToSs(Util.rmHeadOfString(str))
+      val (extracted, rest) = Substring.splitl (fn c => c <> endStr) noFirstSep
+    in (extracted |> Util.ssToStr, rest |> Util.ssToStr |> Util.rmHeadOfString)
+  end
+
 (*Excpects the string to be correctly formatted*)
 fun strToBool(str:string) = if str = "true" then true else false
 fun isStartOfIdentifier(c:char) = Char.isAlpha(c) 
