@@ -1,4 +1,3 @@
-use "operators.sml";
 fun main a = a
 structure ListUtil =
 struct 
@@ -17,7 +16,8 @@ the element is true*)
 fun takeWhile(l:'a list, pred:('a->bool)) = 
   case l of 
       [] => [] 
-     |(x::xs) => if pred(x) then x::takeWhile(xs,pred) else []
+     |(x::xs) => if pred(x) then x::takeWhile(xs,pred) 
+                 else []
 
 (*Fills a new list with elements of the passed list unitil the predicate for
 the element is true*)
@@ -25,6 +25,7 @@ fun takeWhileNot(l:'a list, pred:('a->bool)) =
   takeWhile(l,(fn e=>not(pred(e))))
 
 fun isNonEmpty(l:'a list) = List.length(l) > 0
+
 (*Creates a copy of the passed list. As long as the predicate is true, elements
  from the passed list is not included into the returned*)
 fun dropWhile(l:'a list, pred:('a->bool)) = 

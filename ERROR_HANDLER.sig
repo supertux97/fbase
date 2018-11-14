@@ -48,4 +48,10 @@ signature ERROR_HANDLER =
 
     (*Description*)
     val invalidReferer:string -> exn
+
+    (*Found type*Required type*)
+    val pipeFunctionTypeError:string*string -> exn
+
+    (*Name*)
+    val pipeFunctionNotFound:string -> exn 
  end;

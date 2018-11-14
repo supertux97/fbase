@@ -1,7 +1,5 @@
-use "util/util.sml";
 use "map/map.sml";
 use "map/map.sig";
-use "util/parseUtil.sml";
 use "ErrorHandler.sml";
 use "scanner.sml";
 
@@ -13,7 +11,7 @@ datatype Type = STRING | NUMBER | BOOL
 
 (*For each field*)
 datatype fieldInfo = fieldInfoNoDefault of string * Type |
-                    fieldInfoDefault of string * Type * Tok.litteral
+                    fieldInfoDefault of string * Type * litteral
 val fieldDelim = #";"
 val idString = #"s"
 val idNumber = #"n"
@@ -33,8 +31,17 @@ fun getFieldType(finfo:fieldInfo) =
       |fieldInfoNoDefault(_,type_) => type_
 
 fun getDefaultVal(fd:fieldInfo) = 
-  case fd of 
-        fieldInfoDefault(_,_,default) => default
+  case fd of
+        fieldInfoDefault(_,_,default) => (case default of
+            (*Default strings is padded to look like a regular string*)
+             Tok.String(s) =>
+               let val strSep = Char.toString(Scanner.stringSep)
+               in
+                Tok.String(
+                  Util.format("$$$",[strSep, TokUtil.litteralToStr(default),
+                  strSep]))
+               end
+            |other => default )
        |unonown => raise Match
 (*Gets the type by reading the first character of the string*)
 
@@ -51,21 +58,21 @@ fun getTypeByIdentifier(source:string): Type =
 
 (*Gets the first litteral from a string. The string is expected
  to be correctly formated*)
-fun getLitteral(source:string):Tok.litteral= 
+fun getLitteral(source:string):litteral= 
   let val firstChar = Util.hdString(source)
   in
     if ParseUtil.isStartOfString(firstChar) then 
-        Tok.String(ParseUtil.strFromBeginningOfStr(source, Scanner.stringSep))
+        String(ParseUtil.strFromBeginningOfStr(source, Scanner.stringSep))
     else if ParseUtil.isStartOfDigit(firstChar) then
       let val (firstNum,rest) = ParseUtil.getFirstNumberFromString(source)
-      in Tok.Number(firstNum)
+      in Number(firstNum)
       end
 
     else  
       let val (id,rest) = Substring.splitl (fn c=>c <> endOfInfo) (Util.strToSs(source))
       in case Util.ssToStr(id) of 
-           "true" => Tok.Bool(true)
-           |"false" => Tok.Bool(false)
+           "true" => Bool(true)
+           |"false" => Bool(false)
            | other => raise ErrorHandler.unexpectedSymbol("number, string or boolean", other ^ " in metadatafile", 1)
       end
   end

@@ -1,4 +1,3 @@
-use "util/util.sml";
 use "util/parseUtil.sml";
 use "util/listUtil.sml";
 use "utest.sml"; 
@@ -12,8 +11,17 @@ val keywords = ["from","filter","using","and","or",
               "where", "set","create","table","with",
               "colums","of","default","string","boolean","number",
               "output"]
-val functions = ["upper","lower","oneof","noneof"]
-val pipeFunctions = ["upper","lower"]
+
+
+val pfToLowerCase = "lower"
+val pfToUpperCase = "upper"
+val pfNumSep = "numSep"
+val pfTrim = "trim"
+val pfCapitalized = "capitalized"
+val pfBackwards = "backwards"
+val pipeFunctions = [pfToLowerCase, pfToUpperCase, pfNumSep, pfCapitalized,
+ pfBackwards,pfTrim]
+val functions = ["toUpper","toLower","oneof","noneof"]
 
 val operatorsLenOne = ["+","-","*","/"]
 val operators = operatorsLenOne
@@ -24,7 +32,8 @@ val predicateOperatorsLenTwo = ["<=",">=", "!="]
 val predicateOperators = predicateOperatorsLenOne @ predicateOperatorsLenTwo
 
 val syntaxSymbolsLenOne = [".",",",":","{","}","(", ")","*","|",Char.toString(stringSep)] 
-val syntaxSymbolsLenTwo = ["->"]
+val pipeOperator = "->"
+val syntaxSymbolsLenTwo = [pipeOperator]
 val syntaxSymbols = syntaxSymbolsLenOne @ syntaxSymbolsLenTwo 
 
 val oneLenOperators = operatorsLenOne @ predicateOperatorsLenOne @ syntaxSymbolsLenOne
@@ -278,21 +287,25 @@ fun determineTokTypeForReserved(s:string):Token =
     end
     handle Subscript => []
 
+(*Removes exess whitespace. Two or more whitespaces are squezed into one*)
+fun rmWs(str:string):string =
+  case (Util.getCharAtIndex(str,0), Util.getCharAtIndex(str,1))  of
+      (SOME(#" "), SOME(#" ")) => rmWs(String.substring(str,1, size(str) -1))
+    | (SOME(_), SOME(_)) => String.substring(str,0,1) ^ rmWs(String.substring(str,1,size(str) -1))
+    | (_, _) => str (*The first or both are empty*)
+
 fun trimAndScan(str:string):TokenAtLine list =
   let
     val noComments = rmComments(Util.splitStrByNewline(str))
-    val noCommentsStr = ListUtil.listToStr(noComments, Util.I,"")
   in
-    scan(noCommentsStr,1)
+    scan(ListUtil.listToStr(noComments, Util.I," "),1)
   end
-
 
 fun evalFromTxt(txt:string):string =
   Real.toString(evalExprTree(createExprTree(trimAndScan(txt),txt),txt))
 
 fun printTree(expr:string) = 
   print(exprTreeToStr(createExprTree(trimAndScan(expr),expr)))
-
 
 fun testExpr(expr:string, ans:string) = test(expr, ans, evalFromTxt(expr),Util.I) 
 fun main a = 

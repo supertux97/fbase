@@ -5,21 +5,20 @@ use "tok.sml";
 fun main a = a
 structure TokUtil = 
 struct
-type TokenAtLine = Tok.TokenAtLine
 
 (*Gets the first tree tokens and then the rest*)
-fun getFirstTripple(toks:TokenAtLine list):(TokenAtLine*TokenAtLine*TokenAtLine*TokenAtLine list) =
+fun getFirstTripple(toks:Tok.TokenAtLine
+  list):(Tok.TokenAtLine*Tok.TokenAtLine*Tok.TokenAtLine*Tok.TokenAtLine list) =
    ( List.nth(toks,0), List.nth(toks,1), List.nth(toks,2), ListUtil.dropN(toks, 2))  
 
 fun tokValAndKind(value:string, kind:string) = Util.format("$:$", [value, kind])
 fun tokVal(value:string, kind:string) = value
 fun tokKind(value:string, kind:string) = kind
 
-
-fun getTok(tal: TokenAtLine) = 
+fun getTok(tal: Tok.TokenAtLine) = 
  case tal of (t,_) => t 
 
-fun getLineNo(tal:TokenAtLine) =
+fun getLineNo(tal:Tok.TokenAtLine) =
   case tal of(_,lineNo) => lineNo
   
 fun mkTokAtLine(tok:Tok.Token, line:int):Tok.TokenAtLine = (tok, line)
@@ -49,11 +48,14 @@ fun litteralToStr(lit:Tok.litteral) =
      |Tok.String(s) => s
      |Tok.Bool(b) => if b then "true" else "false"
 
-fun valOfTok(t:TokenAtLine) = 
+fun valOfTok(t:Tok.TokenAtLine) = 
   tokToStr(getTok(t),tokVal)
 
-fun tokAtLineToTok(tal:TokenAtLine):Tok.Token = 
+fun tokAtLineToTok(tal:Tok.TokenAtLine):Tok.Token = 
   case tal of (tok,_) => tok
+
+fun getTokKind(tok:Tok.Token):string = 
+  tokToStr(tok, tokKind)
 
 fun listOfTokenAtLineToToks(tals:Tok.TokenAtLine list):Tok.Token list = 
   List.map tokAtLineToTok tals
@@ -66,11 +68,18 @@ fun litteralEquals(l1:Tok.litteral,l2:Tok.litteral) =
     |(Tok.String(s1), Tok.String(s2)) => s1 = s2 
     |other => false
 
-fun tokListToStr(tl:TokenAtLine list):string =
+fun getLitteralKind(l:Tok.litteral) = 
+  case l of
+    Tok.String(_) => "string"
+   |Tok.Number(_) => "integer"
+   |Tok.Bool(_) => "boolean"
+
+fun tokAtLineListToStr(tl:Tok.TokenAtLine list):string =
   case tl of
      [] => ""
     |(x::xs) =>
       case x of
         (tok, lineNo) =>
-          Util.format("[$] $", [Util.$lineNo, tokToStr(tok,tokValAndKind)]) ^ "\n" ^ tokListToStr(xs)
+          Util.format("[$] $", [Util.$lineNo, tokToStr(tok,tokValAndKind)]) ^
+          "\n" ^ tokAtLineListToStr(xs)
 end;

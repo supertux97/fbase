@@ -1,9 +1,8 @@
-use "scanner.sml";
 use "ErrorHandler.sml";
 use "operators.sml";
 use "util/listUtil.sml";
-use "metadataParser.sml";
 use "dataParser.sml";
+
 open Scanner; (*Also opens tok*)
 
 structure Query = 
@@ -17,7 +16,8 @@ val queryTypeSeperators = ["from","merge","filter","output"]
 
 type aliasToTablename = string*string
 type mergeInfo = {table1:string, table2:string, mergeCol:string} 
-type outputList = {table:string, column:string} list 
+type pipeOperation = (litteral -> litteral)
+type outputAndPipeList = {table:string, column:string,operations:pipeOperation list} list 
 
 val metadataFileEnding = ".md"
 val dataFileEnding = ".dat"
@@ -67,19 +67,19 @@ only associated with the from query-type *)
 fun getTablesAndAliases(fromToks:TokenAtLine list):aliasToTablename list = 
   let fun fromQueryToAliasMapping(q:TokenAtLine list):aliasToTablename = 
         case q of 
-          [x] => (case getTok(x) of 
+          [x] => (case TokUtil.getTok(x) of 
                      Identifier(i) => (i,i)
                     |other => raise ErrorHandler.unexpectedSymbol(
                                       "Identifier",
                                        TokUtil.tokToStr(other, TokUtil.tokValAndKind),
-                                       getLineNo(x)) )
+                                       TokUtil.getLineNo(x)) )
          |[(Identifier(table),_), (Keyword("as"),_), (Identifier(alias),_)] => (alias, table)
          |invalid => raise ErrorHandler.malformedQuery(
                               "IDENTIFIER or IDENTIFIER \"as\" IDENTIFIER",
                                ListUtil.listToStr(
                                 invalid,
-                                (fn e=> TokUtil.tokToStr(getTok(e),TokUtil.tokKind))," "),
-                              invalid |> hd |> getLineNo)
+                                (fn e=> TokUtil.tokToStr(TokUtil.getTok(e),TokUtil.tokKind))," "),
+                              invalid |> hd |> TokUtil.getLineNo)
 
       (*Each sublist contains one table query and is divided using the table
       separator*)
@@ -97,7 +97,7 @@ fun loadRequestedTables(requested:aliasToTablename list) =
           let val metadataForTable = MetadataParser.parse(Util.fileToStr(table ^ metadataFileEnding))
               val dataForTable = Util.fileToStr(table ^ dataFileEnding) 
               val rowsForTable = Util.splitStr(dataForTable, #"\n")
-              val parsedDataForTable:Tok.litteral StrMap.Map list  = DataParser.parse(metadataForTable,
+              val parsedDataForTable:litteral StrMap.Map list  = DataParser.parse(metadataForTable,
                   rowsForTable, table ^ dataFileEnding)
           in inner(restRequested, StrMap.insert(map,name,parsedDataForTable) )
           end
@@ -185,7 +185,81 @@ fun performMerge(aliasToTableNames:aliasToTablename list, data, mergeInfoOpt:mer
       raise ErrorHandler.multipleTablesNoMerge()
     else data
 
+(*
+=======================
+======PIPE_FUNCTIONS===
+=======================
+ *)
+fun raiseTypeError(found:Tok.litteral, required:string) =
+  raise ErrorHandler.pipeFunctionTypeError(
+            TokUtil.getLitteralKind(found),required)
 
+fun transformStr(t:Tok.litteral, eachCharFunc: (char -> char)) =
+ case t of
+  Tok.String(s) =>
+    let val chars = String.explode(s)
+          val upperCaseChars = List.map eachCharFunc chars
+      in
+       Tok.String(String.implode(upperCaseChars))
+      end
+  |other => raiseTypeError(other,"string")
+
+fun toUpper(t:Tok.litteral) =
+  transformStr(t, Char.toUpper)
+
+fun toLower(t:Tok.litteral) =
+ transformStr(t, Char.toLower)
+
+fun backwards(t:Tok.litteral) = 
+  let fun performBackwards(str:string):string = 
+    str |> String.explode |> rev |> String.implode
+  in
+  case t of 
+     Tok.String(s) => Tok.String(performBackwards(s))
+    |other => raiseTypeError(other,"string")
+  end
+
+(*Creates a string consisting of the number with a space for each third digit
+ Ex: 555000 -> 1 000*)
+fun numSep(n: Tok.litteral) =
+  let fun performSep(c::chars, currDigit):char list =
+           (case currDigit mod 3 of
+               0 => c :: #" " :: performSep(chars, currDigit + 1)
+              |n => c :: performSep(chars,currDigit + 1))
+
+         |performSep([], currDigit) = []
+    in
+      case n of
+          Tok.Number(n) =>
+            let
+              val numbers = Real.toString(n)
+              val numbersChars = String.explode(numbers)
+              val revNumbers = rev(numbersChars)
+
+              val decimalPart = #"." :: ListUtil.takeWhile(revNumbers,(fn c => c <> #"."))
+              val numberPart = tl(ListUtil.dropWhile(revNumbers,(fn c => c <> #".")))
+              val numSeperatedRev = performSep(numberPart,1)
+              val numSeperated = rev(numSeperatedRev)
+          in
+            Tok.String(String.implode(numSeperated @ decimalPart))
+          end
+         |other => raiseTypeError(other, "number")
+   end
+
+(*Makes the first character upper-case*)
+fun capitalized(t:Tok.litteral) =
+  case t of
+    Tok.String(s) =>
+        let val upper = s |> Util.hdString |> Char.toUpper |> Char.toString
+            val rest = String.substring(s, 1, size(s) -1)
+        in Tok.String(upper ^ rest)
+        end
+   |other => raiseTypeError(other,"string")
+
+fun trim(s:Tok.litteral) = 
+ case s of 
+  Tok.String(s) => Tok.String(s |> Util.rmSpaceAtStartOrEnd |> Util.rmMultipleSpace) 
+  |other => raiseTypeError(other, "string")
 
 (*
 =======================
@@ -193,16 +267,36 @@ fun performMerge(aliasToTableNames:aliasToTablename list, data, mergeInfoOpt:mer
 =======================
  *)
 
+fun applyOperations(lit:litteral,operations:pipeOperation list):litteral = 
+  case operations of 
+    (x::xs) => applyOperations( (x lit), xs) 
+    |[] => lit 
+
+fun removeDelimiters(lit:Tok.litteral) = 
+  case lit of 
+    Tok.String(s) => Tok.String(s |> Util.rmHeadOfString |> Util.rmTailOfString)
+    |other => other
+
+fun applyDelimiters(lit:Tok.litteal)
 (*Converts a single row with the requested fields into a string represetnation.
  Formatting to make it into a table like structure is applied*)
-fun outputRow(row:Tok.litteral StrMap.Map,fieldsToOutput:outputList,
+fun outputRow(row:litteral StrMap.Map,fieldsToOutput:outputAndPipeList,
   lineNo:int):string = 
   case fieldsToOutput of
     (field::fields) => 
         (case StrMap.get(row,#column field) of
-           SOME(s) => TokUtil.litteralToStr(s) ^ 
+              (*Delimiters: ' for strings, is removed when using in
+                ipe-functions to avoid problems*)
+           SOME(s) => let val delimitersRemoved = removeDelimiters(s) 
+                          val cellValAppliedOperations =
+                            applyOperations(delimitersRemoved,
+                                 rev(#operations field))
+                          val delimitersApplied = 
+                      in
+                      TokUtil.litteralToStr(cellValAppliedOperations) ^
                       outputFieldsSep ^
                       outputRow(row,fields, lineNo)
+                      end
 
            |NONE => raise ErrorHandler.unknownColumn(
                     #column field, #column field, lineNo))
@@ -210,7 +304,7 @@ fun outputRow(row:Tok.litteral StrMap.Map,fieldsToOutput:outputList,
 
 
 (*Gets a string repsetantation of the requested fields. Formatting is applied*)
-fun getHeader(fieldsToOutput:outputList) = 
+fun getHeader(fieldsToOutput:outputAndPipeList) = 
   case fieldsToOutput of
     (x::xs) => #column x ^ outputHeaderSep ^ getHeader(xs)
     |[] => ""
@@ -219,7 +313,7 @@ fun getHeader(fieldsToOutput:outputList) =
 (*Gets a string representation of the requested data. The data is then formatted
 into a table-like format. Data is of format returned by getRequestedTables.*)
 fun getOutputAndFormat(
-    fieldsToOutput:outputList,
+    fieldsToOutput:outputAndPipeList,
     data, lineNo:int):string = 
 
   let fun getOutputEachRow(fieldsToOutput,rowsIn, rowsOut:string list):string list = 
@@ -253,14 +347,46 @@ fun getOutputAndFormat(
     end
   end
 
+fun getPipeFunctionFromName(name:string) = 
+  if name = Scanner.pfToLowerCase then toLower
+  else if name = Scanner.pfToUpperCase then toUpper 
+  else if name = Scanner.pfCapitalized then capitalized
+  else if name = Scanner.pfNumSep then numSep
+  else if name = Scanner.pfBackwards then backwards
+  else if name = Scanner.pfTrim then trim
+  else raise ErrorHandler.pipeFunctionNotFound(name)
 
+(*Gets the list of operations to be performed for a single column and the tokens
+ after the operations*)
+fun getPipeOpeations(toks:Token list):(pipeOperation list * Token list) = 
+  let fun getOperations(operations,toks) = 
+        case toks of
+         PipeFunction(pf)::ts =>
+           getOperations(getPipeFunctionFromName(pf)::operations, ts)
+        |Symbol(SyntaxSymbol("->"))::ts => getOperations(operations,ts)
+        |Symbol(SyntaxSymbol(","))::ts => (operations, ts)
+        |[] => (operations, toks)
+        |other::ts => raise
+        ErrorHandler.pipeFunctionNotFound(TokUtil.tokToStr(other,
+        TokUtil.tokVal))
+  in
+  case toks of
+    (Symbol(SyntaxSymbol("->"))::ts) => getOperations([],ts)
+    |[] => ([], [])
+    |other => ([],toks) 
+  end
 (*Converts a list of tokens into a list where each elements consists of the
-table and the columnname.*)
-fun getOutputList(toks:Token list,lineNo:int): outputList = 
+table and the columnname as well as a list of the operations to be performed on
+ the column.*)
+fun getOutputAndPipeList(toks:Token list,lineNo:int): outputAndPipeList= 
   case toks of
     Identifier(t)::Symbol(SyntaxSymbol("."))::Identifier(c)::xs => 
-        {table=t, column=c} :: getOutputList(xs,lineNo)
-    |Symbol(SyntaxSymbol(","))::xs => getOutputList(xs,lineNo)
+        let val (pipeOperations, rest) = getPipeOpeations(xs) 
+        in
+          {table=t, column=c, operations=pipeOperations} ::
+          getOutputAndPipeList(rest,lineNo)
+        end
+    |Symbol(SyntaxSymbol(","))::xs => getOutputAndPipeList(xs,lineNo)
     |[] => []
     |other => raise ErrorHandler.malformedQuery("output TABLENAME.COLUMNNAME,...",
                   ListUtil.listToStr(other, (fn t => TokUtil.tokToStr(t,
@@ -269,7 +395,14 @@ fun getOutputList(toks:Token list,lineNo:int): outputList =
 
   fun getFirstLineNo(part):int = 
     if List.length(part) = 0 then ~1
-    else getLineNo(List.nth(part,0))
+    else TokUtil.getLineNo(List.nth(part,0))
+
+(*
+=============
+===PIPELINING
+=============
+ *)
+
 
 (*Runs the query, from the query string source, to the output in string format*)
 fun runQuery(q:string):string = 
@@ -279,8 +412,7 @@ fun runQuery(q:string):string =
     val merge = #merge parts
     val output = #output parts
     val filter = #filter parts
-
-    val mapped = List.map TokUtil.tokAtLineToTok merge
+     
     val mergeInfo = getMergeInfo( (List.map TokUtil.tokAtLineToTok merge),getFirstLineNo(merge))
 
     val infoForRequstedTables = getTablesAndAliases(from)
@@ -288,8 +420,8 @@ fun runQuery(q:string):string =
     val mergedData = performMerge(infoForRequstedTables, mapOfTablesToData, mergeInfo)
 
     val outputToks = TokUtil.listOfTokenAtLineToToks(output)
-    val outputList = getOutputList(outputToks,getFirstLineNo(output)) 
-    val output = getOutputAndFormat(outputList,mergedData,getFirstLineNo(output))
+    val outputAndPipeList = getOutputAndPipeList(outputToks,getFirstLineNo(output)) 
+    val output = getOutputAndFormat(outputAndPipeList,mergedData,getFirstLineNo(output))
 
   in  output
   end

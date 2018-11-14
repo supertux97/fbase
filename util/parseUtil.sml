@@ -1,5 +1,6 @@
 use "tok.sml";
 use "util/util.sml";
+use "operators.sml";
 structure ParseUtil = 
 struct 
 fun main a = a;

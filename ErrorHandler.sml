@@ -21,6 +21,9 @@ structure ErrorHandler:ERROR_HANDLER =
     exception InvalidMergeException of string
     exception UnknownColumnException of string
     exception  InvalidRefererException of string
+    exception PipeFunctionTypeError of string
+    exception PipeFunctionNotFound of string
+
     fun warning(degree:severity, explanation:string, lineNo:int):unit = 
       let val typeWarning = 
             case degree of 
@@ -91,4 +94,12 @@ structure ErrorHandler:ERROR_HANDLER =
     raise InvalidRefererException(message)
   fun invalidMerge(desc:string) = 
     raise InvalidMergeException(desc)
+
+  fun pipeFunctionTypeError(foundType:string, requiredType:string) = 
+    raise PipeFunctionTypeError(Util.format(
+      "Column of type $ cannot be applied to function that requires $", [foundType, requiredType]))
+
+  fun pipeFunctionNotFound(name:string) = 
+    raise PipeFunctionNotFound(Util.format(
+    "There is no pipe-function with the  name of $", [name]))
   end;
