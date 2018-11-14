@@ -277,9 +277,16 @@ fun removeDelimiters(lit:Tok.litteral) =
     Tok.String(s) => Tok.String(s |> Util.rmHeadOfString |> Util.rmTailOfString)
     |other => other
 
-fun applyDelimiters(lit:Tok.litteal)
+fun applyDelimiters(lit:Tok.litteral) = 
+  let val strDelim = Char.toString(Scanner.stringSep)
+  in case lit of 
+    Tok.String(s) => Tok.String(Util.format("$$$", [strDelim,s,strDelim]))
+   |other => other
+  end
+
 (*Converts a single row with the requested fields into a string represetnation.
  Formatting to make it into a table like structure is applied*)
+
 fun outputRow(row:litteral StrMap.Map,fieldsToOutput:outputAndPipeList,
   lineNo:int):string = 
   case fieldsToOutput of
@@ -291,9 +298,10 @@ fun outputRow(row:litteral StrMap.Map,fieldsToOutput:outputAndPipeList,
                           val cellValAppliedOperations =
                             applyOperations(delimitersRemoved,
                                  rev(#operations field))
-                          val delimitersApplied = 
+                          val delimitersApplied =
+                            applyDelimiters(cellValAppliedOperations)
                       in
-                      TokUtil.litteralToStr(cellValAppliedOperations) ^
+                      TokUtil.litteralToStr(delimitersApplied) ^
                       outputFieldsSep ^
                       outputRow(row,fields, lineNo)
                       end

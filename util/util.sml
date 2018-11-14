@@ -23,7 +23,7 @@ fun I(a) = a
 
 (*
 =======================
-======STRINGS=============
+======STRINGS AND CHARS
 =======================
  *)
 fun ssToStr(s:substring) = Substring.string s
@@ -38,6 +38,8 @@ fun hdString(str:string):char = String.sub(str,0)
 fun hdStringOpt(str:string):char option = 
   if size(str) = 0 then NONE
   else SOME(String.sub(str,0))
+
+fun chrToStr(c) = Char.toString(c)
 
 (*Splits a string into parts defined by a delimter. If the delimiter appears at
  the back, an empty string is returned as the last elem*)

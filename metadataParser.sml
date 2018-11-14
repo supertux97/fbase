@@ -5,20 +5,23 @@ use "scanner.sml";
 
 fun main a = a
 
+(*Provides funtions and types related to extracting, validating and organizing metadata.*)
 structure MetadataParser = 
 struct 
 datatype Type = STRING | NUMBER | BOOL 
 
-(*For each field*)
-datatype fieldInfo = fieldInfoNoDefault of string * Type |
-                    fieldInfoDefault of string * Type * litteral
+(*Metadata for each field*)
+datatype fieldInfo = fieldInfoNoDefault of string * Type | (*Field name*Type of field*)
+                    fieldInfoDefault of string * Type * litteral (*Field name*Type of field*default value*)
+
 val fieldDelim = #";"
+val endOfInfo = #"}"
+
+(*Used to signify the field type*)
 val idString = #"s"
 val idNumber = #"n"
 val idBool = #"b"
-val endOfInfo = #"}"
 
-fun chrToStr(c) = Char.toString(c)
 
 fun getFieldName(finfo:fieldInfo) = 
   case finfo of
@@ -30,6 +33,22 @@ fun getFieldType(finfo:fieldInfo) =
        fieldInfoDefault(_,type_,_) => type_
       |fieldInfoNoDefault(_,type_) => type_
 
+fun typeToStr(t:Type) = 
+      case t of 
+           STRING => "string"
+          |NUMBER => "number"
+          |BOOL => "bool"
+
+
+fun fieldInfoToStr(fi:fieldInfo,idx:int) = 
+    case fi of 
+         fieldInfoDefault(name, t, defVal) => Util.format("Name:$ Idx:$ type_:$ DefVal: $", 
+             [name, Util.$(idx), typeToStr(t),TokUtil.litteralToStr(defVal)])
+        |fieldInfoNoDefault(name, t) => Util.format("Name: $ Idx:$ type_:$ ", 
+             [name, Util.$(idx), typeToStr(t)])
+
+
+(*Extracts the default value and applies formatting*)
 fun getDefaultVal(fd:fieldInfo) = 
   case fd of
         fieldInfoDefault(_,_,default) => (case default of
@@ -43,8 +62,9 @@ fun getDefaultVal(fd:fieldInfo) =
                end
             |other => default )
        |unonown => raise Match
-(*Gets the type by reading the first character of the string*)
 
+
+(*Gets the type by reading the first character of the string*)
 fun getTypeByIdentifier(source:string): Type = 
   let val firstChar = Util.hdString(source)
   in
@@ -52,7 +72,8 @@ fun getTypeByIdentifier(source:string): Type =
     else if firstChar = idNumber then NUMBER
     else if firstChar = idBool then BOOL 
     else raise ErrorHandler.unexpectedSymbol(Util.format("$, $ or $",
-        [chrToStr(idString), chrToStr(idNumber), chrToStr(idBool)]), chrToStr(firstChar) ^" in metadata file",1)
+        [Util.chrToStr(idString), Util.chrToStr(idNumber),
+         Util.chrToStr(idBool)]), Util.chrToStr(firstChar) ^" in metadata file",1)
   end
 
 
@@ -71,13 +92,15 @@ fun getLitteral(source:string):litteral=
     else  
       let val (id,rest) = Substring.splitl (fn c=>c <> endOfInfo) (Util.strToSs(source))
       in case Util.ssToStr(id) of 
-           "true" => Bool(true)
+            "true" => Bool(true)
            |"false" => Bool(false)
-           | other => raise ErrorHandler.unexpectedSymbol("number, string or boolean", other ^ " in metadatafile", 1)
+           |other => raise ErrorHandler.unexpectedSymbol("number, string or boolean", other ^ " in metadatafile", 1)
       end
   end
 
-(*Splits a single field of metadata information into the corresponding parts.
+
+(*Splits a single field of metadata information into the corresponding parts
+defined in fieldInfo
  A pair of the fieldname and the information is returned*)
 fun parseSingleField(source:string):fieldInfo = 
   let val (name,rest) = ParseUtil.getFirstIdentifier(source) 
@@ -91,32 +114,21 @@ fun parseSingleField(source:string):fieldInfo =
   handle Subscript => raise ErrorHandler.malformedMetadata(source,"syntax in acordance to the manual")
   end
 
-fun typeToStr(t:Type) = 
-      case t of 
-           STRING => "string"
-          |NUMBER => "number"
-          |BOOL => "bool"
 
-fun fieldInfoToStr(fi:fieldInfo,idx:int) = 
-    case fi of 
-         fieldInfoDefault(name, t, defVal) => Util.format("Name:$ Idx:$ type_:$ DefVal: $", 
-             [name, Util.$(idx), typeToStr(t),TokUtil.litteralToStr(defVal)])
-        |fieldInfoNoDefault(name, t) => Util.format("Name: $ Idx:$ type_:$ ", 
-             [name, Util.$(idx), typeToStr(t)])
+(*Extracts information from a list of metadata information  into a list of
+ tupples consisting of the fieldname and the associated metadata for the field*)
+fun parseFileInfoFromFieldList (fields:string list):(fieldInfo) list = 
+  let fun inner(fieldsIn, fieldsOut) = 
+    case fieldsIn of 
+      (x::xs) => 
+        let val field = parseSingleField(x) 
+        in inner(xs, field :: fieldsOut)
+       end
+      |[] => fieldsOut
+  in
+    inner(fields, [])
+  end
 
-  (*Extracts information from a string of metadata information into a list of
-   tupples consisting of the fieldname and the associated information*)
-  fun parseFileInfoFromFieldList (fields:string list):(fieldInfo) list = 
-    let fun inner(fieldsIn, fieldsOut) = 
-      case fieldsIn of 
-        (x::xs) => 
-          let val field = parseSingleField(x) 
-          in inner(xs, field :: fieldsOut)
-         end
-        |[] => fieldsOut
-    in
-      inner(fields, [])
-    end
 
 (*Parses position and type information from a metadata source. Type information
 includes type of the field and possibly a default value

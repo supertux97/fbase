@@ -1,15 +1,15 @@
 fun main a = a
+
+(*Functions for working with lists. The functions will work lists of any type*)
 structure ListUtil =
 struct 
+
+(*The identity function*)
+fun I(e:'a) =  e
 
 (*Checks if a element is included in a list
 adapted with variations from "ML for the working programmer"*)
 fun member(x) l = List.exists (fn elem => elem = x) l
-
-(*Adopted from "Ml for the working programmer"*)
-infix memberOf
-fun (x memberOf []) = false
-| (x memberOf (e::r)) = (x=e) orelse (x memberOf r)
 
 (*Fills a new list with elements of the passed list as long as a predicate for
 the element is true*)
@@ -51,8 +51,6 @@ let
     removeElemAtIndex(l,i,0)
   end
 
-  (*The identity function*)
-  fun I(e:'a) =  e
 
 (*Creates a string representation of the given list. toStr is used for
 converting the elemtns to a string and sep is used in between the elements*)
@@ -69,16 +67,9 @@ fun twoDimListToStr(twoDim:'a list list,toStr:('a->string), sepElem:string,sepBe
   in oneString
   end
 
-(*Creates a list filled with the numbers n,n-1,...,1.
- fillList(5) will therefore give a 5 element long list*)
-fun fillList(n) = 
-  let fun fillInner(0,l) = l
-        | fillInner(n,l) = fillInner(n-1, n::l)
-  in
-    fillInner(n,[])
-  end
-
-(*Compare retunrs wheter the first element is bigger than the second*)
+(*Finds the largest elemetn of the list.
+ A supplied comparator is used for the comparision. Compare returns whether the
+ first element is bigger than the second*)
 fun max(l:'a list, compare:'a*'a->bool):'a = 
   let fun inner(l,biggest) =  
     case l of 
@@ -91,21 +82,6 @@ fun max(l:'a list, compare:'a*'a->bool):'a =
   end
 
 fun intGreatherThan(a:int, b:int) = a > b
-
-fun dropN([], n:int) = []
-  | dropN(l,0) = l
-  | dropN(x::xs,n) = dropN(xs,n-1) 
-
-(*The sum of all elements in a list of integers or reals*)
-fun sum [] = 0
-   |sum(x::xs) = x + sum(xs)
-
-fun sumTail(l) = 
-  let fun sumFrom([], summed) = summed
-	   |sumFrom(x::xs,summed) = sumFrom(xs,summed + x)
-  in
-	  sumFrom(l, 0)
-  end
 
 (*A variant of the map function where the callback is a tuple constisting of the
  element and the index*)
@@ -132,4 +108,3 @@ fun splitListIntoSublists(l:'a list, pred:('a->bool)):'a list list =
               end
        else []
 end;
-

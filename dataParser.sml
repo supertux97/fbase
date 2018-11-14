@@ -2,11 +2,15 @@ use "map/map.sml";
 use "metadataParser.sml";
 
 open MetadataParser
+
+(*Provides functions related to parsing and validating data from a data-source.
+ Metadata information is used for the validation part.*)
 structure DataParser = 
 struct
+
 val fieldDelim = #";"
 val stringSep = #"'"
-fun main a = a
+
 
 (*Tries to get the first litteral from a string source*)
 fun getLitteralFromType(
@@ -41,6 +45,9 @@ fun getLitteralFromType(
                           raiseWrongDataExn("boolean", type_) )
           |NONE => NONE 
   end
+
+(*Puts a single field into a map. Metadata informaation for the field is used to
+ proovide default information if present.*)
 fun parseSingleFieldIntoMap(
       field:string, metadata:MetadataParser.fieldInfo, map:Tok.litteral StrMap.Map, lineNo:int,
       filename:string) = 
@@ -61,6 +68,9 @@ fun parseSingleFieldIntoMap(
                                               getDefaultVal(infoDef)))
       end
 
+
+(*Maps a list of fields to a map where each key korrespnds to a single field.
+The returned value corespnds to a single row.*)
 fun mapFields(
     fields:string list, metadata:MetadataParser.fieldInfo list,
      map:Tok.litteral StrMap.Map,lineNo:int, filename:string):Tok.litteral StrMap.Map = 
@@ -74,6 +84,8 @@ fun mapFields(
         |[] => map )
     |[] => map
 
+
+(*Creates a mapping for each field in the row and their corredponding values*)
 fun parseSingleRow(metadata: MetadataParser.fieldInfo list, row:string, lineNo:int,
                    filename:string):(Tok.litteral StrMap.Map) = 
 
@@ -82,6 +94,7 @@ fun parseSingleRow(metadata: MetadataParser.fieldInfo list, row:string, lineNo:i
   in  
       mapFields(fields, metadata, map,lineNo, filename)
   end
+
 
 (*Parses data from a single string. Uses a list of metadata information to parse a list of data-rows into a list of maps. Each map 
  represents a single row and contains a mapping between the column-name and the actual value. 
@@ -97,12 +110,4 @@ fun parse(
   in rowsParsed
   end
 
-fun find(data: (Tok.litteral StrMap.Map) list, index:int, fieldName:string):string = 
-  let val dataAtIndex = List.nth(data, index)
-  in
-    case  StrMap.get(dataAtIndex, fieldName) of 
-      SOME(s) => TokUtil.litteralToStr(s)
-     |NONE => "field not found"
-
-  end 
 end;
