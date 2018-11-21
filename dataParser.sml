@@ -13,9 +13,9 @@ fun getLitteralFromType(
       source:string, type_:MetadataParser.Type, lineNo:int,
       filename:string):Tok.litteral option = 
 
-  let fun raiseWrongDataExn(expected, found) = 
+  let fun raiseWrongDataExn(expected) = 
         raise ErrorHandler.typeErrorStoredData(
-                expected, MetadataParser.typeToStr(found),lineNo,filename)
+                expected, ParseUtil.getTypeOfSource(source),filename,lineNo)
 
       val firstCharOpt = Util.hdStringOpt(source)
   in
@@ -30,20 +30,23 @@ fun getLitteralFromType(
                             SOME(tokStr)
                           end
                          else 
-                            raiseWrongDataExn("string", type_)
+                            raiseWrongDataExn("string")
               |NUMBER => if ParseUtil.isStartOfDigit(firstChar) then
                             SOME(Tok.Number(ParseUtil.getFirstNumberFromStringAsLitteral(source)))
                          else
-                           raiseWrongDataExn("integer", type_)
+                           raiseWrongDataExn("integer")
               |BOOL  => if ParseUtil.isStrBoolean(source) then
                             SOME(Tok.Bool(ParseUtil.strToBool(source)))
                         else 
-                          raiseWrongDataExn("boolean", type_) )
+                          raiseWrongDataExn("boolean") )
           |NONE => NONE 
   end
+
+(*Puts the value of a single field into the map and uses a default value if not
+ found (the defualt value has to exist)*)
 fun parseSingleFieldIntoMap(
-      field:string, metadata:MetadataParser.fieldInfo, map:Tok.litteral StrMap.Map, lineNo:int,
-      filename:string) = 
+      field:string, metadata:MetadataParser.FieldInfo, 
+      map:Tok.litteral StrMap.Map, lineNo:int,filename:string) = 
 
       let val fieldType = MetadataParser.getFieldType(metadata) 
           val fieldName = MetadataParser.getFieldName(metadata)
@@ -62,33 +65,33 @@ fun parseSingleFieldIntoMap(
       end
 
 fun mapFields(
-    fields:string list, metadata:MetadataParser.fieldInfo list,
-     map:Tok.litteral StrMap.Map,lineNo:int, filename:string):Tok.litteral StrMap.Map = 
-  case metadata of 
-    (m::ms) => 
-      (case fields of
-        (f::fs) => mapFields(
-                      fs,ms,
-                      parseSingleFieldIntoMap(f, m, map, lineNo, filename),
-                      lineNo + 1 , filename)
-        |[] => map )
-    |[] => map
+    fields:string list, metadata:MetadataParser.FieldInfo list,
+    map:Tok.litteral StrMap.Map, lineNo:int, filename:string):Tok.litteral StrMap.Map = 
+  case (metadata,fields) of 
+    (m::ms, f::fs) => 
+      mapFields(
+        fs,ms,
+        parseSingleFieldIntoMap(f, m, map, lineNo, filename),
+        lineNo, filename)
+    |([],[]) => map
+    |other => raise ErrorHandler.dataNotMatchingMetadata(filename)
 
-fun parseSingleRow(metadata: MetadataParser.fieldInfo list, row:string, lineNo:int,
+fun parseSingleRow(metadata: MetadataParser.FieldInfo list, row:string, lineNo:int,
                    filename:string):(Tok.litteral StrMap.Map) = 
 
-  let val fields = Util.splitStr(row,fieldDelim)
+       let val fields = Util.splitStr(row,fieldDelim)
       val map = StrMap.empty()
   in  
       mapFields(fields, metadata, map,lineNo, filename)
   end
 
-(*Parses data from a single string. Uses a list of metadata information to parse a list of data-rows into a list of maps. Each map 
- represents a single row and contains a mapping between the column-name and the actual value. 
+(*Parses data from a single string. Uses a list of metadata information to parse a list of data-rows into 
+  a list of maps. Each map represents a single row and contains a mapping between the column-name and 
+ the actual value. 
  If no value appears in the field and a default value is defined in the metadata for this
  field, that value is used. Othervise, an exception is trown.*)
 fun parse(
-      metadata: MetadataParser.fieldInfo list, rows:string list, 
+      metadata: MetadataParser.FieldInfo list, rows:string list, 
       filename:string): (Tok.litteral StrMap.Map) list = 
 
   let val rowsParsed = rev(ListUtil.mapWithIndex 

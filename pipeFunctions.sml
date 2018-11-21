@@ -26,7 +26,6 @@ fun toUpper(t:Tok.litteral) =
 fun toLower(t:Tok.litteral) = 
  transformStr(t, Char.toLower) 
 
-
 (*Creates a string consisting of the number with a space for each third digit
  Ex: 555000 -> 1 000*)
 fun numSep(n: Tok.litteral) = 

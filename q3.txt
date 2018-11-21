@@ -1,0 +1,3 @@
+from empSmall as e, dep as d
+merge d and e using depID
+output merged.name, merged.depName

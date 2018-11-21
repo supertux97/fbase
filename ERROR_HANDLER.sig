@@ -29,7 +29,7 @@ signature ERROR_HANDLER =
     val malformedMetadata:string*string -> exn
 
     (*Expected type*Found type*lineNo*file*)
-    val typeErrorStoredData:string*string*int*string -> exn
+    val typeErrorStoredData:string*string*string*int -> exn
 
     (*Filename*lineno*)
     val missingData:string*int -> exn
@@ -54,4 +54,10 @@ signature ERROR_HANDLER =
 
     (*Name*)
     val pipeFunctionNotFound:string -> exn 
+
+    (*Expected type*found type*field*file*)
+    val typeErrorDefaultVal:string*string*string*string -> exn
+
+    (*Filename*)
+    val dataNotMatchingMetadata:string -> exn
  end;

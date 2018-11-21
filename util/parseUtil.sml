@@ -78,4 +78,14 @@ fun isStartOfnegativeDigit(first:char, secondOpt:char option, thirdOpt:char opti
   case (secondOpt, thirdOpt) of
       (SOME(c2), SOME(c3)) =>  first= #"(" andalso c2 = #"-" andalso Char.isDigit(c3)
      | (_, _) => false
+
+fun getTypeOfSource(s:string):string = 
+  let val firstChar = Util.hdString(s)
+  in 
+    if s = "true" orelse s = "false" then "boolean"
+    else if isStartOfString(firstChar) then "string"
+    else if isStartOfDigit(firstChar) then "integer"
+    else "unknown"
+  end 
+
 end;

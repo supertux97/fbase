@@ -17,7 +17,7 @@ val queryTypeSeperators = ["from","merge","filter","output"]
 type aliasToTablename = string*string
 type mergeInfo = {table1:string, table2:string, mergeCol:string} 
 type pipeOperation = (litteral -> litteral)
-type outputAndPipeList = {table:string, column:string,operations:pipeOperation list} list 
+type outputAndPipeList = {table:string, column:string, outputName:string, operations:pipeOperation list} list 
 
 val metadataFileEnding = ".md"
 val dataFileEnding = ".dat"
@@ -94,7 +94,9 @@ The entries are a list (for all the rows) and all the list elements is a map for
 all the colums of the row. Map( Table1: [Map:(field1:"test",field2:"apple",...), ...], Table2: [] )  *)
 fun loadRequestedTables(requested:aliasToTablename list) =
   let fun inner( (name,table)::restRequested, map) = 
-          let val metadataForTable = MetadataParser.parse(Util.fileToStr(table ^ metadataFileEnding))
+          let val metadataFile = table ^ metadataFileEnding
+               val metadataForTable =
+                 MetadataParser.parse(Util.fileToStr(metadataFile),metadataFile)
               val dataForTable = Util.fileToStr(table ^ dataFileEnding) 
               val rowsForTable = Util.splitStr(dataForTable, #"\n")
               val parsedDataForTable:litteral StrMap.Map list  = DataParser.parse(metadataForTable,
@@ -277,36 +279,44 @@ fun removeDelimiters(lit:Tok.litteral) =
     Tok.String(s) => Tok.String(s |> Util.rmHeadOfString |> Util.rmTailOfString)
     |other => other
 
-fun applyDelimiters(lit:Tok.litteal)
+fun applyDelimiters(lit:Tok.litteral) = 
+  let val strDelim = Char.toString(Scanner.stringSep)
+  in case lit of 
+    Tok.String(s) => Tok.String(Util.format("$$$", [strDelim,s,strDelim]))
+   |other => other
+  end
+
 (*Converts a single row with the requested fields into a string represetnation.
  Formatting to make it into a table like structure is applied*)
+
 fun outputRow(row:litteral StrMap.Map,fieldsToOutput:outputAndPipeList,
   lineNo:int):string = 
   case fieldsToOutput of
     (field::fields) => 
-        (case StrMap.get(row,#column field) of
+        (case StrMap.get(row, #column field) of
               (*Delimiters: ' for strings, is removed when using in
                 ipe-functions to avoid problems*)
            SOME(s) => let val delimitersRemoved = removeDelimiters(s) 
                           val cellValAppliedOperations =
                             applyOperations(delimitersRemoved,
                                  rev(#operations field))
-                          val delimitersApplied = 
+                          val delimitersApplied =
+                            applyDelimiters(cellValAppliedOperations)
                       in
-                      TokUtil.litteralToStr(cellValAppliedOperations) ^
+                      TokUtil.litteralToStr(delimitersApplied) ^
                       outputFieldsSep ^
                       outputRow(row,fields, lineNo)
                       end
 
            |NONE => raise ErrorHandler.unknownColumn(
-                    #column field, #column field, lineNo))
+                    #column field, #table field, lineNo))
   |[] => ""
 
 
 (*Gets a string repsetantation of the requested fields. Formatting is applied*)
 fun getHeader(fieldsToOutput:outputAndPipeList) = 
   case fieldsToOutput of
-    (x::xs) => #column x ^ outputHeaderSep ^ getHeader(xs)
+    (x::xs) => #outputName x ^ outputHeaderSep ^ getHeader(xs)
     |[] => ""
 
 
@@ -380,12 +390,26 @@ table and the columnname as well as a list of the operations to be performed on
  the column.*)
 fun getOutputAndPipeList(toks:Token list,lineNo:int): outputAndPipeList= 
   case toks of
-    Identifier(t)::Symbol(SyntaxSymbol("."))::Identifier(c)::xs => 
-        let val (pipeOperations, rest) = getPipeOpeations(xs) 
-        in
-          {table=t, column=c, operations=pipeOperations} ::
-          getOutputAndPipeList(rest,lineNo)
-        end
+     (*query for table*)
+     Identifier(t)::Symbol(SyntaxSymbol("."))::Identifier(c)::xs => (
+          case xs of 
+            (*Custom col name*)
+             Keyword("named")::Identifier(n)::xsNamed=> 
+              let val (pipeOperations, rest) = getPipeOpeations(xsNamed) 
+              in
+                {table=t, column=c, outputName=n, operations=pipeOperations} ::
+                getOutputAndPipeList(rest,lineNo)
+              end
+
+            (*Default name*)
+            |other => 
+              let val (pipeOperations, rest) = getPipeOpeations(xs) 
+              in
+                {table=t, column=c, outputName=c, operations=pipeOperations} ::
+                getOutputAndPipeList(rest,lineNo)
+              end )
+
+     (*query for table finished*)
     |Symbol(SyntaxSymbol(","))::xs => getOutputAndPipeList(xs,lineNo)
     |[] => []
     |other => raise ErrorHandler.malformedQuery("output TABLENAME.COLUMNNAME,...",
@@ -407,25 +431,29 @@ fun getOutputAndPipeList(toks:Token list,lineNo:int): outputAndPipeList=
 (*Runs the query, from the query string source, to the output in string format*)
 fun runQuery(q:string):string = 
   let
-    val parts = q |> trimAndScan |> splitToksIntoQueryParts
-    val from = #from parts
-    val merge = #merge parts
-    val output = #output parts
-    val filter = #filter parts
-     
+    val queryParts = q |> trimAndScan |> splitToksIntoQueryParts
+    val from = #from queryParts
+    val merge = #merge queryParts
+    val output = #output queryParts
+    val filter = #filter queryParts
+    
+    (*Gets information about what data should be outputted and how it should be outputted and
+    transformed*) 
     val mergeInfo = getMergeInfo( (List.map TokUtil.tokAtLineToTok merge),getFirstLineNo(merge))
-
-    val infoForRequstedTables = getTablesAndAliases(from)
-    val mapOfTablesToData = loadRequestedTables(infoForRequstedTables)
-    val mergedData = performMerge(infoForRequstedTables, mapOfTablesToData, mergeInfo)
-
     val outputToks = TokUtil.listOfTokenAtLineToToks(output)
+    val tablesAndAliasesRequested = getTablesAndAliases(from)
     val outputAndPipeList = getOutputAndPipeList(outputToks,getFirstLineNo(output)) 
+
+    (*Gets data*)
+    val mapOfTablesToData = loadRequestedTables(tablesAndAliasesRequested)
+    val mergedData = performMerge(tablesAndAliasesRequested, mapOfTablesToData, mergeInfo)
+
+    (*Outputs data*)
     val output = getOutputAndFormat(outputAndPipeList,mergedData,getFirstLineNo(output))
 
   in  output
   end
 
-val _ = print(runQuery(Util.fileToStr("q2.txt")))
+val _ = print(runQuery(Util.fileToStr("q3.txt")))
 
 end;

@@ -20,9 +20,12 @@ structure ErrorHandler:ERROR_HANDLER =
     exception MultipleTablesNoMergeException of string
     exception InvalidMergeException of string
     exception UnknownColumnException of string
-    exception  InvalidRefererException of string
+    exception InvalidRefererException of string
     exception PipeFunctionTypeError of string
     exception PipeFunctionNotFound of string
+    exception TypeErrorDefaultVal of string
+    exception DataNotMatchingMetadataException of string
+    
 
     fun warning(degree:severity, explanation:string, lineNo:int):unit = 
       let val typeWarning = 
@@ -68,7 +71,9 @@ structure ErrorHandler:ERROR_HANDLER =
     fun emptyQuery() = 
       raise EmptyQueryException("ERROR: The query cannot be empty")
 
-    fun typeErrorStoredData(expectedType:string, foundType:string, lineNo:int, file:string):exn  =
+    fun typeErrorStoredData(
+      expectedType:string,
+      foundType:string,file:string,lineNo:int):exn  =
       raise TypeErrorStoredDataException(Util.format(
           "ERROR: expected data of type $ but found $ at line $ in datafile $", 
            [expectedType, foundType, Util.$(lineNo), file]))
@@ -102,4 +107,15 @@ structure ErrorHandler:ERROR_HANDLER =
   fun pipeFunctionNotFound(name:string) = 
     raise PipeFunctionNotFound(Util.format(
     "There is no pipe-function with the  name of $", [name]))
+
+  fun typeErrorDefaultVal(expected:string, found:string, 
+    field:string, filename:string) = 
+    raise TypeErrorDefaultVal(Util.format(
+    "Expected default value of $ but found $ in field $ in metadatafile $",
+     [expected,found,field,filename]))
+
+  fun dataNotMatchingMetadata(filename:string) = 
+    raise DataNotMatchingMetadataException(
+      Util.format("The data in $ have a structur different from the data in the corresponding metadatafile", 
+       [filename]))
   end;

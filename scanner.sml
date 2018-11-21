@@ -3,14 +3,17 @@ use "util/listUtil.sml";
 use "utest.sml"; 
 use "ErrorHandler.sml";
 use "util/tokUtil.sml";
+use "pipeFunctions.sml";
+use "SCANNER.sig";
+
 open Tok
-structure Scanner = 
+structure Scanner :> SCANNER = 
 struct
 val keywords = ["from","filter","using","and","or",
               "merge","insert","rows","into","remove","as",
               "where", "set","create","table","with",
               "colums","of","default","string","boolean","number",
-              "output"]
+              "output", "named"]
 
 
 val pfToLowerCase = "lower"
@@ -26,7 +29,7 @@ val functions = ["toUpper","toLower","oneof","noneof"]
 val operatorsLenOne = ["+","-","*","/"]
 val operators = operatorsLenOne
 val stringSep = #"'"
-  val commentSymbol = #"#"
+val commentSymbol = #"#"
 val predicateOperatorsLenOne = ["=","<",">"]
 val predicateOperatorsLenTwo = ["<=",">=", "!="]
 val predicateOperators = predicateOperatorsLenOne @ predicateOperatorsLenTwo
