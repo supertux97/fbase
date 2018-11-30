@@ -6,4 +6,5 @@ sig
   val get: ('a Map*keyType) -> 'a option
   val empty:(unit) -> 'a Map
   val addTwoMaps:('a Map*'a Map)->'a Map
+  val keyList:('a Map) -> keyType list
 end;

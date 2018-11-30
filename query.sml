@@ -290,7 +290,7 @@ fun applyDelimiters(lit:Tok.litteral) =
  Formatting to make it into a table like structure is applied*)
 
 fun outputRow(row:litteral StrMap.Map,fieldsToOutput:outputAndPipeList,
-  lineNo:int):string = 
+  lineNo:int):string list = 
   case fieldsToOutput of
     (field::fields) => 
         (case StrMap.get(row, #column field) of
@@ -303,22 +303,69 @@ fun outputRow(row:litteral StrMap.Map,fieldsToOutput:outputAndPipeList,
                           val delimitersApplied =
                             applyDelimiters(cellValAppliedOperations)
                       in
-                      TokUtil.litteralToStr(delimitersApplied) ^
-                      outputFieldsSep ^
+                      TokUtil.litteralToStr(delimitersApplied) ::
                       outputRow(row,fields, lineNo)
                       end
 
            |NONE => raise ErrorHandler.unknownColumn(
                     #column field, #table field, lineNo))
-  |[] => ""
+  |[] => [""]
 
 
 (*Gets a string repsetantation of the requested fields. Formatting is applied*)
-fun getHeader(fieldsToOutput:outputAndPipeList) = 
-  case fieldsToOutput of
-    (x::xs) => #outputName x ^ outputHeaderSep ^ getHeader(xs)
-    |[] => ""
+fun getHeader(fieldsToOutput:outputAndPipeList,sizeForCol:int list) = 
+  case (fieldsToOutput,sizeForCol) of
+    (x::xs,s::ss) => let val colName = #outputName x
+                         val lengthMissing = s - size(colName)
+                         val padded = colName ^ Util.repeatStr(" ", lengthMissing)
+                     in padded ^ outputHeaderSep ^ getHeader(xs,ss)
+                     end
+    |([],[]) => ""
 
+(*Finds the length of the largest element in each column. This is useful for
+padding the colums to that they have a common width. The output is a list where
+ each elemnent correspnds to each column*)
+fun getMaxColLenghts(rows:string list list):int list = 
+  let fun maxColLenghtsForRow(cols:string list,longest:int list,idx:int):int list = 
+          case cols of
+            c::cs => 
+                 let val lenCol = size(c)
+                     val currLongest = List.nth(longest,idx)
+                 in if lenCol > currLongest then
+                      maxColLenghtsForRow(
+                        cs,ListUtil.replaceElemAtIndex(longest,idx,lenCol),idx+ 1)
+                    else 
+                      maxColLenghtsForRow(cs,longest,idx+1)
+                 end
+            |[] => longest
+      fun maxForColsInner(longest:int list,rows) = 
+        case rows of 
+          (r::rs) => let val longestNow = maxColLenghtsForRow(r,longest,0)
+                         in maxForColsInner(longestNow,rs)
+                     end
+          |[] => longest
+    in 
+        maxForColsInner(ListUtil.fillWith(0,List.length(List.nth(rows,0))),rows)
+  end
+
+(*Ensures that the width of each row is matching the width correspnding column in
+  lengthOfColums. The difference is replaced with spaces. It is expected that
+  the elems lengthOfColums is never smaller than any of the elenents in
+    colsForRow*)
+fun applyPaddingAndFormattingForRow(colsForRow:string list, lengthOfColums:int list):string = 
+  let fun applyInner(cols,idx) = 
+    case cols of
+      c::cs => let val missing = List.nth(lengthOfColums,idx) - size(c)
+                            val padded = c ^ (Util.repeatStr(" ", missing))
+                        in 
+                          padded ^ outputFieldsSep ^
+                          applyInner(cs,idx + 1)
+                        end
+     |[]  => ""
+  in 
+    applyInner(colsForRow,0)
+  end
+  handle Subscript => raise Match
 
 (*Gets a string representation of the requested data. The data is then formatted
 into a table-like format. Data is of format returned by getRequestedTables.*)
@@ -326,13 +373,15 @@ fun getOutputAndFormat(
     fieldsToOutput:outputAndPipeList,
     data, lineNo:int):string = 
 
-  let fun getOutputEachRow(fieldsToOutput,rowsIn, rowsOut:string list):string list = 
+  let fun getOutputEachRow(fieldsToOutput,rowsIn, rowsOut:string list list):string
+  list list = 
     case rowsIn of 
       (row::restRows) => 
         let val currRow = outputRow(row,fieldsToOutput,lineNo) 
-        in getOutputEachRow(fieldsToOutput, restRows, currRow::rowsOut)
+        in getOutputEachRow(fieldsToOutput, restRows, currRow :: rowsOut)
         end
       |[] => rowsOut
+
   in
     (*At this point, only one tablename is left. This is because multiple tables
      have to be merged into one*) 
@@ -340,11 +389,15 @@ fun getOutputAndFormat(
     in     
     case StrMap.get(data,tableName) of
        SOME(s) => 
-          let val rows = getOutputEachRow(fieldsToOutput, s,[])
+          let val listOfFieldsOfRows:string list list = getOutputEachRow(fieldsToOutput, s,[])
+              val listOfColSizes:int list = getMaxColLenghts(listOfFieldsOfRows) 
+              val rows:string list = List.map (
+                    fn r => applyPaddingAndFormattingForRow(r,listOfColSizes))
+                    listOfFieldsOfRows
               val rowLengths = List.map (String.size) rows 
               val longestRow = ListUtil.max(rowLengths,ListUtil.intGreatherThan) - size(outputFieldsSep)
               val sepForLine = Util.repeatStr(outputLineSep, longestRow)
-              val header = getHeader(fieldsToOutput)
+              val header = getHeader(fieldsToOutput,listOfColSizes)
               val rowsWithSepList = List.map (fn e => e ^ "\n" ^ sepForLine ^ "\n") rows
           in 
             sepForLine ^ "\n" ^ header ^ "\n" ^ sepForLine ^ "\n" ^ 
@@ -447,13 +500,12 @@ fun runQuery(q:string):string =
     (*Gets data*)
     val mapOfTablesToData = loadRequestedTables(tablesAndAliasesRequested)
     val mergedData = performMerge(tablesAndAliasesRequested, mapOfTablesToData, mergeInfo)
-
     (*Outputs data*)
     val output = getOutputAndFormat(outputAndPipeList,mergedData,getFirstLineNo(output))
 
   in  output
   end
 
-val _ = print(runQuery(Util.fileToStr("q3.txt")))
+val _ = print(runQuery(Util.fileToStr("q2.txt")))
 
 end;

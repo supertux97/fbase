@@ -55,5 +55,13 @@ struct
     in addToMap(m1,m2)
     end
 
+  fun keyList(m:'a Map): keyType list = 
+    case m of 
+      EmptyNode => []
+     |Node(k,v,l,r) => 
+         let val left = keyList(l)
+             val right = keyList(r)
+         in (k::left) @ right
+         end
 end;
 

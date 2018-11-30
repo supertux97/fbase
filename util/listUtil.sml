@@ -19,6 +19,7 @@ fun takeWhile(l:'a list, pred:('a->bool)) =
      |(x::xs) => if pred(x) then x::takeWhile(xs,pred) 
                  else []
 
+
 (*Fills a new list with elements of the passed list unitil the predicate for
 the element is true*)
 fun takeWhileNot(l:'a list, pred:('a->bool)) = 
@@ -51,14 +52,22 @@ let
     removeElemAtIndex(l,i,0)
   end
 
-  (*The identity function*)
-  fun I(e:'a) =  e
+(*The identity function*)
+fun I(e:'a) =  e
+
+fun replaceElemAtIndex(l:'a list,i:int,new:'a) = 
+  let val listBefore = List.take(l,i)
+      val listAfter = List.drop(tl(l),i) 
+  in 
+    rev(new ::listBefore) @  listAfter
+  end
 
 (*Creates a string representation of the given list. toStr is used for
 converting the elemtns to a string and sep is used in between the elements*)
 fun listToStr ([], toStr:('a->string), sep:string):string = ""
   | listToStr([x], toStr, sep) = toStr x
   | listToStr(x::xs, toStr, sep) = toStr x ^ sep ^ listToStr(xs,toStr,sep)
+
 
 (*Creates as string repsetentation of a given twodimentional list. toStr is used
  for converting the elemtns to a string. sepElem is used between the elements
@@ -77,6 +86,11 @@ fun fillList(n) =
   in
     fillInner(n,[])
   end
+
+fun fillWith(elem:'a,num:int):'a list = 
+  case num of 
+   0 => []
+  |n => elem :: fillWith(elem,num-1)
 
 (*Compare retunrs wheter the first element is bigger than the second*)
 fun max(l:'a list, compare:'a*'a->bool):'a = 
@@ -126,10 +140,10 @@ fun splitListIntoSublists(l:'a list, pred:('a->bool)):'a list list =
        if List.length(l) > 0 then
             takeWhileNot(l,pred):: 
               let val restAfterFirstSublist = 
-                  let val restIncludingDelim = dropWhileNot(l,pred)
+                     let val restIncludingDelim = dropWhileNot(l,pred)
                   in if List.length(restIncludingDelim) <= 1 then [] else tl(restIncludingDelim) end
               in splitListIntoSublists(restAfterFirstSublist, pred)
               end
        else []
-end;
 
+end;

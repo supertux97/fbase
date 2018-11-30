@@ -39,6 +39,7 @@ fun hdStringOpt(str:string):char option =
   if size(str) = 0 then NONE
   else SOME(String.sub(str,0))
 
+
 (*Splits a string into parts defined by a delimter. If the delimiter appears at
  the back, an empty string is returned as the last elem*)
 fun splitStr(str:string, delim:char):string list = 

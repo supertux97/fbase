@@ -1,4 +1,2 @@
-from empSmall as E, dep as d
-merge E and d using depID
-output merged.name -> trim, merged.depName -> upper
-
+from empSmall as e
+output e.name, e.salary
