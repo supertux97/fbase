@@ -1,4 +1,0 @@
-from Person as P, PersonWork as PW
-merge P and PW using personID
-filter department oneof('computers','phones') and
-salary > 100.558 and phonenumber != (-123)

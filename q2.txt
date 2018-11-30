@@ -1,3 +1,0 @@
-from empSmall as e, dep as d
-merge e and d using depID
-output merged.name, merged.salary,merged.depName

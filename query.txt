@@ -1,2 +1,0 @@
-from empSmall as E
-output E.name, E.salary 

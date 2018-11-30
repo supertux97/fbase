@@ -1,0 +1,5 @@
+echo "Kompilerer..."
+cd src
+polyc fbase.sml -o fbase
+mv fbase ..
+echo "Ferdig. Bruk ./fbase spørrefil for å kjøre"
