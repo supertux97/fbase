@@ -286,10 +286,10 @@ fun applyDelimiters(lit:Tok.litteral) =
    |other => other
   end
 
-(*Converts a single row with the requested fields into a string represetnation.
- Formatting to make it into a table like structure is applied*)
-
-fun outputRow(row:litteral StrMap.Map,fieldsToOutput:outputAndPipeList,
+(*Gets the output for a single row as a list of colums. The pipe-functions is
+applied.
+ *)
+fun getSingleRow(row:litteral StrMap.Map,fieldsToOutput:outputAndPipeList,
   lineNo:int):string list = 
   case fieldsToOutput of
     (field::fields) => 
@@ -304,80 +304,86 @@ fun outputRow(row:litteral StrMap.Map,fieldsToOutput:outputAndPipeList,
                             applyDelimiters(cellValAppliedOperations)
                       in
                       TokUtil.litteralToStr(delimitersApplied) ::
-                      outputRow(row,fields, lineNo)
-                      end
+                    getSingleRow(row,fields, lineNo)
+                    end
 
-           |NONE => raise ErrorHandler.unknownColumn(
-                    #column field, #table field, lineNo))
-  |[] => [""]
+         |NONE => raise ErrorHandler.unknownColumn(
+                  #column field, #table field, lineNo))
+  |[] => [] 
 
 
 (*Gets a string repsetantation of the requested fields. Formatting is applied*)
 fun getHeader(fieldsToOutput:outputAndPipeList,sizeForCol:int list) = 
-  case (fieldsToOutput,sizeForCol) of
-    (x::xs,s::ss) => let val colName = #outputName x
-                         val lengthMissing = s - size(colName)
-                         val padded = colName ^ Util.repeatStr(" ", lengthMissing)
-                     in padded ^ outputHeaderSep ^ getHeader(xs,ss)
-                     end
-    |([],[]) => ""
+case (fieldsToOutput,sizeForCol) of
+  (x::xs,s::ss) => let val colName = #outputName x
+                       val lengthMissing = s - size(colName)
+                       val padded = colName ^ Util.repeatStr(" ", lengthMissing)
+                   in 
+                    (*Only puts next col reperator when there is more colums*)
+                     if length(xs) > 0 then 
+                       padded ^ outputHeaderSep ^ getHeader(xs,ss)
+                     else 
+                       padded 
+                   end
+  |([],[]) => ""
+  |_ => raise Match (*No of correct fields is already checked*)
 
 (*Finds the length of the largest element in each column. This is useful for
 padding the colums to that they have a common width. The output is a list where
- each elemnent correspnds to each column*)
+each elemnent correspnds to each column*)
 fun getMaxColLenghts(rows:string list list):int list = 
-  let fun maxColLenghtsForRow(cols:string list,longest:int list,idx:int):int list = 
-          case cols of
-            c::cs => 
-                 let val lenCol = size(c)
-                     val currLongest = List.nth(longest,idx)
-                 in if lenCol > currLongest then
-                      maxColLenghtsForRow(
-                        cs,ListUtil.replaceElemAtIndex(longest,idx,lenCol),idx+ 1)
-                    else 
-                      maxColLenghtsForRow(cs,longest,idx+1)
-                 end
-            |[] => longest
-      fun maxForColsInner(longest:int list,rows) = 
-        case rows of 
-          (r::rs) => let val longestNow = maxColLenghtsForRow(r,longest,0)
-                         in maxForColsInner(longestNow,rs)
-                     end
+let fun maxColLenghtsForRow(cols:string list,longest:int list,idx:int):int list = 
+        case cols of
+          c::cs => 
+               let val lenCol = size(c)
+                   val currLongest = List.nth(longest,idx)
+               in if lenCol > currLongest then
+                    maxColLenghtsForRow(
+                      cs,ListUtil.replaceElemAtIndex(longest,idx,lenCol),idx+ 1)
+                  else 
+                    maxColLenghtsForRow(cs,longest,idx+1)
+               end
           |[] => longest
-    in 
-        maxForColsInner(ListUtil.fillWith(0,List.length(List.nth(rows,0))),rows)
-  end
+    fun maxForColsInner(longest:int list,rows) = 
+      case rows of 
+        (r::rs) => let val longestNow = maxColLenghtsForRow(r,longest,0)
+                       in maxForColsInner(longestNow,rs)
+                   end
+        |[] => longest
+  in 
+      maxForColsInner(ListUtil.fillWith(0,List.length(List.nth(rows,0))),rows)
+end
 
 (*Ensures that the width of each row is matching the width correspnding column in
-  lengthOfColums. The difference is replaced with spaces. It is expected that
-  the elems lengthOfColums is never smaller than any of the elenents in
-    colsForRow*)
+lengthOfColums. The difference is replaced with spaces. It is expected that
+the elems lengthOfColums is never smaller than any of the elenents in
+  colsForRow*)
 fun applyPaddingAndFormattingForRow(colsForRow:string list, lengthOfColums:int list):string = 
-  let fun applyInner(cols,idx) = 
-    case cols of
-      c::cs => let val missing = List.nth(lengthOfColums,idx) - size(c)
-                            val padded = c ^ (Util.repeatStr(" ", missing))
-                        in 
-                          padded ^ outputFieldsSep ^
-                          applyInner(cs,idx + 1)
-                        end
-     |[]  => ""
-  in 
-    applyInner(colsForRow,0)
-  end
-  handle Subscript => raise Match
+let fun applyInner(cols,idx) = 
+  case cols of
+    c::cs => let val missing = List.nth(lengthOfColums,idx) - size(c)
+                          val padded = c ^ (Util.repeatStr(" ", missing))
+                      in 
+                        padded ^ outputFieldsSep ^
+                        applyInner(cs,idx + 1)
+                      end
+   |[]  => ""
+in 
+  applyInner(colsForRow,0)
+end
+handle Subscript => raise Match
 
 (*Gets a string representation of the requested data. The data is then formatted
 into a table-like format. Data is of format returned by getRequestedTables.*)
 fun getOutputAndFormat(
-    fieldsToOutput:outputAndPipeList,
-    data, lineNo:int):string = 
+  fieldsToOutput:outputAndPipeList,
+  data, lineNo:int):string = 
 
-  let fun getOutputEachRow(fieldsToOutput,rowsIn, rowsOut:string list list):string
-  list list = 
-    case rowsIn of 
-      (row::restRows) => 
-        let val currRow = outputRow(row,fieldsToOutput,lineNo) 
+let fun getOutputEachRow(fieldsToOutput,rowsIn, rowsOut:string list list):string
+list list = 
+  case rowsIn of 
+    (row::restRows) => 
+      let val currRow = getSingleRow(row,fieldsToOutput,lineNo) 
         in getOutputEachRow(fieldsToOutput, restRows, currRow :: rowsOut)
         end
       |[] => rowsOut

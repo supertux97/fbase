@@ -78,6 +78,7 @@ fun twoDimListToStr(twoDim:'a list list,toStr:('a->string), sepElem:string,sepBe
   in oneString
   end
 
+
 (*Creates a list filled with the numbers n,n-1,...,1.
  fillList(5) will therefore give a 5 element long list*)
 fun fillList(n) = 
