@@ -1,5 +1,7 @@
-echo "Kompilerer..."
+echo "Compiling..."
 cd src
 polyc fbase.sml -o fbase
+polyc exprParser.sml -o exprParser
 mv fbase ..
-echo "Ferdig. Bruk ./fbase spørrefil for å kjøre"
+mv exprParser ..
+echo "Done. Use ./fbase queryFile or ./exprParser expr(as string) to run" 
