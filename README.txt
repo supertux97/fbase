@@ -1,6 +1,6 @@
-Bruk:
-./install for kompilering av filene
-./fbase spørrefil  for selve kjøringen
+Usage:
+./install for compilation 
+./fbase spørrefil for running the program 
 
 Dependencies:
 polyml
