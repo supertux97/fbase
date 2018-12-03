@@ -1,5 +1,6 @@
 use "scanner.sml";
 val highPriOperators = ["*","/"]
+
 (*Node: Left Val Right*)
 datatype TreeLitteral = TreeNum of real | TreeOper of string
 datatype ExprTree = 
@@ -7,28 +8,41 @@ datatype ExprTree =
               treeLit of TreeLitteral | 
               Node of ExprTree * TreeLitteral * ExprTree 
 
+
   fun evalExprTree(tree:ExprTree,source:string):real = 
-    let fun solveBinExp(n1:real,oper:string,n2:real) = 
+    let fun solveBinExp(n1:real,oper:string,n2:real):real = 
         case oper of 
           "+" => n1 + n2
          | "-" =>  n1 - n2
          | "*" => n1 * n2
          | "/" => if Real.==(0.0,n2) then 
                     raise ErrorHandler.divisionByZero(source)
-                  else n1 / n2
+                  else 
+                    n1 / n2
          | unknown => raise ErrorHandler.noSuchSymbolExpr(unknown, source)
     in
       case tree of
-          treeLit(TreeNum(n)) => n
+          EmptyNode => raise ErrorHandler.emptyExpression()
+         |treeLit(TreeNum(n)) => n
          |Node(left,TreeOper(oper),right) => 
-                      solveBinExp(evalExprTree(left,source), oper,
-                      evalExprTree(right,source)) 
+                      solveBinExp(
+                        evalExprTree(left,source), 
+                        oper,
+                        evalExprTree(right,source)) 
          |treeLit(TreeOper(oper)) => raise ErrorHandler.unexpectedSymbolExpr(
                                      "number",oper, source)
          |unknown => raise ErrorHandler.unexpectedSymbolExpr("number","other",source)
     end
 
 
+fun firstTreeAndRestToks(toks:Token list) =
+   let  val first = List.nth(toks,0)
+        val second = List.nth(toks,1)
+        val third = List.nth(toks,2)
+        val rest = List.drop(toks,3)
+    in
+      (first,second,third,rest)
+    end
 
 (*Creates an expression tree for a list of tokens. 
 
@@ -40,54 +54,60 @@ datatype ExprTree =
 
  High predenecence operations (division and multiplication) is evaluated before beeing inserted into the
  tree. Eg: 2*4+3 will result in the tree: Parent:+ Left:8 Right:3*)
-fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree = 
-  let  fun createSingleNode(tok: TokenAtLine):ExprTree = 
-             case TokUtil.getTok(tok) of
-                   Litteral(Number(n)) => treeLit(TreeNum(n))
-                  |Symbol(Operator(oper)) => treeLit(TreeOper(oper))
-                  |other=> raise ErrorHandler.unexpectedSymbolExpr("number or operator",
-                         TokUtil.tokToStr(other, TokUtil.tokValAndKind), expr)
+fun createExprTree(toks: Token list, expr:string):ExprTree = 
+  let  fun createSingleNode(tok: Token):ExprTree = 
+             case tok of
+               Litteral(Number(n)) => treeLit(TreeNum(n))
+              |Symbol(Operator(oper)) => treeLit(TreeOper(oper))
+              |other=> raise ErrorHandler.unexpectedSymbolExpr(
+                     "number or operator",
+                     TokUtil.tokToStr(other, TokUtil.tokValAndKind), 
+                     expr)
 
-       fun firstHiPredExprAndRest(toks:TokenAtLine list) =
-              let val first = List.nth(toks,0)
-                val second = List.nth(toks,1)
-                val third = List.nth(toks,2)
-                val rest = List.drop(toks,3)
-            in
-              (first,second,third,rest)
-            end
+       fun evalHiPred(oper,toks) = 
+          let val (num1, opp, num2, rest) = firstTreeAndRestToks(toks)
+              val hiPredEvaluated =
+                evalExprTree(
+                  Node(
+                    createExprTree([num1],expr),
+                    TreeOper(oper),
+                    createExprTree([num2],expr)),
+                  expr)
+           in
+             (Litteral(Number(hiPredEvaluated)),rest)
+           end
 
-       fun handleExpectedOperator(found:Token) = 
-         raise
-         ErrorHandler.unexpectedSymbolExpr("operrator",TokUtil.tokToStr(found,TokUtil.tokValAndKind),expr)
+       fun handleUnexpectedOperator(found:Token) = 
+         raise ErrorHandler.unexpectedSymbolExpr(
+              "operator",
+               TokUtil.tokToStr(found,TokUtil.tokValAndKind),
+               expr)
 
  in
    case toks of 
      [] => EmptyNode
     |[singleTok] => createSingleNode(singleTok)
     |(firstTok::afterFirstTok) => 
-               let val secondTok = TokUtil.getTok(hd(afterFirstTok))
-                   val rest = tl(afterFirstTok)
-               in
-                 case secondTok of
-                   Symbol(Operator(oper)) => 
-                        (*Expressions of high predecence is calculated beforehand*)
-                        if ListUtil.member oper highPriOperators then 
-                          let val (num1, opp, num2, rest) = firstHiPredExprAndRest(toks)
-                              val hiPredEvaluated =
-                                evalExprTree(Node(
-                                    createExprTree([num1],expr),
-                                    TreeOper(oper),
-                                    createExprTree([num2],expr)),expr)
-                           in
-                             (*The result of the high predence expression is
-                             added back to the list of tokens to parse*)
-                            createExprTree(TokUtil.mkTokAtLine(Litteral(Number(hiPredEvaluated)),0)::rest,expr)
-                           end
-                        else 
-                          Node(createExprTree([firstTok], expr), TreeOper(oper),
-                          createExprTree(rest, expr))
-                  |other => handleExpectedOperator(other)
+         let val secondTok = hd(afterFirstTok)
+             val rest = tl(afterFirstTok)
+         in case secondTok of
+           Symbol(Operator(oper)) => 
+                if ListUtil.member oper highPriOperators then 
+                  (*Expressions of high predecence is calculated beforehand*)
+                  let val (hiPredEvaluated,rest) = evalHiPred(oper,toks)
+
+                 (*The result of the high predence expression is
+                 added back to the list of tokens to be evaluated*)
+                  in 
+                    createExprTree(hiPredEvaluated::rest,expr)
+                  end
+                (*Normal predesence*)
+                else 
+                  Node(
+                    createExprTree([firstTok], expr), 
+                    TreeOper(oper),
+                    createExprTree(rest, expr))
+          |other => handleUnexpectedOperator(other)
         end
     end
 
@@ -109,10 +129,11 @@ fun createExprTree(toks: TokenAtLine list, expr:string):ExprTree =
    end
 
 fun evalToStr(expr:string):string =
-  Real.toString(evalExprTree(createExprTree(Scanner.trimAndScan(expr),expr),expr))
-
-fun printTree(expr:string) = 
-  print(exprTreeToStr(createExprTree(Scanner.trimAndScan(expr),expr)))
+  let val toksAtLine = Scanner.trimAndScan(expr)
+      val toks = TokUtil.listOfTokenAtLineToToks(toksAtLine)
+  in
+    Real.toString(evalExprTree(createExprTree(toks,expr),expr))
+  end
 
 fun testExpr(expr:string, ans:string) = test(expr, ans, evalToStr(expr),Util.I) 
 

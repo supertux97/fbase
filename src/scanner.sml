@@ -8,6 +8,8 @@ use "pipeFunctions.sml";
 use "SCANNER.sig";
 
 open Tok
+
+(*Consists of functions and values related to scanning/tokeninzing of queryes and expressions*)
 structure Scanner :> SCANNER = 
 struct
 val keywords = ["from","filter","using","and","or",
@@ -25,6 +27,7 @@ val pfCapitalized = "capitalized"
 val pfBackwards = "backwards"
 val pipeFunctions = [pfToLowerCase, pfToUpperCase, pfNumSep, pfCapitalized,
  pfBackwards,pfTrim]
+
 val functions = ["toUpper","toLower","oneof","noneof"]
 
 val operatorsLenOne = ["+","-","*","/"]
@@ -48,18 +51,6 @@ val validSymbols = predicateOperators @ syntaxSymbols @ operators @ firstOfTwoLe
 
 (*Removes all comments from a list of lines. A comment has effects from where it
  is found, to the rest of the line.*)
-fun rmComments(lines: string list):string list =
-  case lines of
-    (x::xs) =>
-    let
-      val substr = Util.strToSs(x)
-      val (noComment, comment) = Substring.splitl (fn c => c <> commentSymbol) substr
-    in
-      Util.ssToStr(noComment) :: rmComments(xs)
-    end
-    |[] => []
-
-
 fun rmCommentsTailrec(lines: string list):string list =
    let fun rmTailRec(lines:string list, result:string list) = 
     case lines of
@@ -184,7 +175,7 @@ fun rmWs(str:string):string =
 
 fun trimAndScan(str:string):TokenAtLine list =
   let
-    val noComments = rmComments(Util.splitStrByNewline(str))
+    val noComments = rmCommentsTailrec(Util.splitStrByNewline(str))
   in
     scan(ListUtil.listToStr(noComments, Util.I," "),1)
   end

@@ -86,4 +86,5 @@ signature ERROR_HANDLER =
     (*Message*)
     val printMsgAndExit:string -> unit
 
+    val emptyExpression:unit -> exn
  end;

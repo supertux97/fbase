@@ -64,7 +64,7 @@ fun splitToksIntoQueryParts(toks: TokenAtLine list):Query =
 (*Maps table-names to aliases. If no alias is given, the tablename is mapped to
 itself. The function assumes the list of tokens to be
 only associated with the from query-type *)
-fun getTablesAndAliases(fromToks:TokenAtLine list):aliasToTablename list = 
+fun getTableAndAliasNames(fromToks:TokenAtLine list):aliasToTablename list = 
   let fun fromQueryToAliasMapping(q:TokenAtLine list):aliasToTablename = 
         case q of 
           [x] => (case TokUtil.getTok(x) of 
@@ -157,12 +157,12 @@ fun matchRows(t1,t2,t3,mergeInfo) =
      (t1Row::t1Rows) => 
 
          (case StrMap.get(t1Row,#mergeCol mergeInfo) of 
-             SOME(s) => (      
+             SOME(sT1Row) => (      
                  let val t2CorrRow = findRowById(t2, #mergeCol
-                  mergeInfo,s)
+                  mergeInfo,sT1Row)
                  in case t2CorrRow of 
-                   SOME(s) => 
-                     let val merged = StrMap.addTwoMaps(s, t1Row)
+                   SOME(sT2Row) => 
+                     let val merged = StrMap.addTwoMaps(sT2Row, t1Row)
                      in matchRows(tl(t1),t2,merged::t3,mergeInfo) end
                    |NONE => raise ErrorHandler.invalidMerge("Could not find corresponding row")
                  end )
@@ -184,7 +184,7 @@ fun performMerge(aliasToTableNames:aliasToTablename list, data, mergeInfoOpt:mer
             StrMap.insert(
               mergeMap,"merged",
               matchRows(someT1,someT2,[], info))
-        |_ => raise ErrorHandler.invalidMerge("Could not find the requested tables for merging")
+        |_ => raise ErrorHandler.invalidMerge("Could not find the requested tables for merging. Have you forgotten to mention a table in from?")
     end
 
   |NONE => 
@@ -231,7 +231,10 @@ fun backwards(t:Tok.litteral) =
 fun numSep(n: Tok.litteral) =
   let fun performSep(c::chars, currDigit):char list =
            (case currDigit mod 3 of
-               0 => c :: #" " :: performSep(chars, currDigit + 1)
+               0 => if length(chars) > 0 then
+                      c :: #" " :: performSep(chars, currDigit + 1)
+                    else 
+                      [c]
               |n => c :: performSep(chars,currDigit + 1))
 
          |performSep([], currDigit) = []
@@ -506,7 +509,7 @@ fun runQuery(q:string):string =
       transformed*) 
       val mergeInfo = getMergeInfo( (List.map TokUtil.tokAtLineToTok merge),getFirstLineNo(merge))
       val outputToks = TokUtil.listOfTokenAtLineToToks(output)
-      val tablesAndAliasesRequested = getTablesAndAliases(from)
+      val tablesAndAliasesRequested = getTableAndAliasNames(from)
       val outputAndPipeList = getOutputAndPipeList(outputToks,getFirstLineNo(output)) 
 
       (*Gets data*)
@@ -524,30 +527,6 @@ fun runQuery(q:string):string =
 preforming the query. The result is printed out*)
 fun runQueryFromFile(filename:string):unit = 
  print(runQuery(Util.fileToStr(filename)))
-
-(*Workaround to prevent the exception from beeing always thrown two times*)
-(*I am fully aware that this is a little maintaiable solution, in regards to
-adding new exceptions in the future. But at least the exceptions are still
-thrown when not listet here, just two times.*)
-handle ErrorHandler.UnknownColumnException(e)=> ErrorHandler.printMsgAndExit(e)
-  | ErrorHandler.DivisionByZeroException(e)=> ErrorHandler.printMsgAndExit(e)
-  |ErrorHandler.UnexpectedSymbolException(e)=> ErrorHandler.printMsgAndExit(e)
-  |ErrorHandler.NoSuchSymbolException(e)=> ErrorHandler.printMsgAndExit(e)
-  |ErrorHandler.AritmetricException(e)=> ErrorHandler.printMsgAndExit(e)
-  |ErrorHandler.EmptyQueryException(e)=> ErrorHandler.printMsgAndExit(e)
-  |ErrorHandler.MalformedQueryException(e)=> ErrorHandler.printMsgAndExit(e)
-  |ErrorHandler.MalformedMetadataException(e)=> ErrorHandler.printMsgAndExit(e)
-  |ErrorHandler.TypeErrorStoredDataException(e)=> ErrorHandler.printMsgAndExit(e)
-  |ErrorHandler.NoSuchTableException(e)=> ErrorHandler.printMsgAndExit(e)
-  |ErrorHandler.MissingDataException(e)=> ErrorHandler.printMsgAndExit(e)
-  |ErrorHandler.MultipleTablesNoMergeException(e)=> ErrorHandler.printMsgAndExit(e)
-  |ErrorHandler.InvalidMergeException(e)=> ErrorHandler.printMsgAndExit(e)
-  |ErrorHandler.InvalidRefererException(e)=> ErrorHandler.printMsgAndExit(e)
-  |ErrorHandler.PipeFunctionTypeError(e)=> ErrorHandler.printMsgAndExit(e)
-  |ErrorHandler.PipeFunctionNotFound(e)=> ErrorHandler.printMsgAndExit(e)
-  |ErrorHandler.TypeErrorDefaultVal(e)=> ErrorHandler.printMsgAndExit(e)
-  |ErrorHandler.DataNotMatchingMetadataException(e)=> ErrorHandler.printMsgAndExit(e)
-  |ErrorHandler.NoDataFoundInDatafile(e)=> ErrorHandler.printMsgAndExit(e)
 
 end;
 

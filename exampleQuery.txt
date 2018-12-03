@@ -1,0 +1,4 @@
+#Presenterer ansatte og avdelingen de arbeider i
+from employee as e, department as d
+merge e and d using depID #Setter sammen de to tabellene
+output merged.name named ansattnavn, merged.depName, merged.salary -> numSep

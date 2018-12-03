@@ -26,6 +26,7 @@ structure ErrorHandler:ERROR_HANDLER =
     exception TypeErrorDefaultVal of string
     exception DataNotMatchingMetadataException of string
     exception NoDataFoundInDatafile of string
+    exception EmptyExpressionException of string
 
     fun warning(degree:severity, explanation:string, lineNo:int):unit = 
       let val typeWarning = 
@@ -86,7 +87,7 @@ structure ErrorHandler:ERROR_HANDLER =
   fun emptyDatafile(file:string) = 
     raise NoDataFoundInDatafile(Util.format("No data found in file: '$'", [file]))
 
-  fun noSuchTable() = 
+  fun noSuchTable(unit) = 
     raise  NoSuchTableException("One or more of the requested tables could not be found")
 
   fun unknownColumn(colname:string, tablename:string, lineNo:int) = 
@@ -124,6 +125,8 @@ structure ErrorHandler:ERROR_HANDLER =
        [filename]))
  
   fun printMsgAndExit(msg) = 
-    (print("ERROR:" ^ msg);OS.Process.exit OS.Process.success)
+    (print("ERROR:" ^ msg ^ "\n");OS.Process.exit OS.Process.success)
 
+ fun emptyExpression(unit) = 
+   raise EmptyExpressionException("A expression cannot be empty")
   end;

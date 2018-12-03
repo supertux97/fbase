@@ -93,11 +93,11 @@ fun fillWith(elem:'a,num:int):'a list =
    0 => []
   |n => elem :: fillWith(elem,num-1)
 
-(*Compare retunrs wheter the first element is bigger than the second*)
-fun max(l:'a list, compare:'a*'a->bool):'a = 
+(*comparator returns wheter the first element is bigger than the second*)
+fun max(l:'a list, comparator:('a*'a->bool)):'a = 
   let fun inner(l,biggest) =  
     case l of 
-      (x::xs) => if compare(x,biggest) then 
+      (x::xs) => if comparator(x,biggest) then 
                     inner(xs,x)
                 else inner(xs,biggest)
       |[] => biggest
